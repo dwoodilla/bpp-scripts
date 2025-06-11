@@ -33,18 +33,17 @@ setup_client(api_key = API_KEY)
 #   ) %>%
 #   req_perform() # Actually make the HTTP request
 # get_data(QUANTAQ_DPW_SN, limit=NULL, start="2025-05-01", stop="2025-05-31", filter=NULL, sort=NULL, raw=TRUE)
-QuantAQ_DPW = list()
+
 datelist = seq(from=as.Date("2025-05-01"), to=as.Date("2025-05-31"), by="day")
-for (i in length(datelist)) {
-  datum = resp_body_json(request(paste0("https://api.quant-aq.com/v1/devices/", QUANTAQ_DPW_SN, "/data-by-date/", datelist[i])) %>%
-                           req_auth_basic(API_KEY, "") %>%
-                           req_perform()
-                         )
-  QuantAQ_DPW = append(QuantAQ_DPW, list(datum))
+QuantAQ_DPW_list <- vector("list", length(datelist))
+
+for (i in seq_along(datelist)) {
+  res = get_data_by_date(QUANTAQ_DPW_SN, datelist[i], raw=TRUE)
+  
 }
 
-# QuantAQ_DPW = resp_body_json(QuantAQ_DPW) # Convert the received JSON into a list of lists of labeled data (which needs to be converted to a dataframe)
-QuantAQ_DPW = do.call(rbind, lapply(QuantAQ_DPW$data, as.data.frame)) # Store QuantAQ_DPW as a data frame
+# QuantAQ_DPW_list <- QuantAQ_DPW_list[!sapply(QuantAQ_DPW_list, is.null)]
+# QuantAQ_DPW <- dplyr::bind_rows(QuantAQ_DPW_list)
 
 # Get CO data from BEACO2N sensor at DPW for the month of May with 1-hour resolution
 # Range: 2025-04-30 17:00:00-07:00 to 2025-05-31 16:00:00-07:00 == 2025-05-01 00:00:00-00:00 to 2025-05-31 23:00:00-00:00
