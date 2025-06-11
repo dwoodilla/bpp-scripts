@@ -1,0 +1,28 @@
+{
+    "id": "83F5BE36",
+    "path": "~/Desktop/summer25/bpp-scripts/api-test-script.R",
+    "project_path": "api-test-script.R",
+    "type": "r_source",
+    "hash": "1898840725",
+    "contents": "",
+    "dirty": false,
+    "created": 1749246228814.0,
+    "source_on_save": false,
+    "relative_order": 1,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "26,7",
+        "scrollLine": "15",
+        "marks": "<:31,88\n>:31,90"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1749649489,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1749649489330,
+    "read_only": false,
+    "read_only_alternatives": []
+}
