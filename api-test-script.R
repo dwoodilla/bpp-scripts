@@ -7,7 +7,6 @@ library(jsonlite)
 # devtools::install_github(repo="quant-aq/r-quantaq") # Uncomment to install QuantAQ's R API from GitHub.
 # install.packages("httr2") # uncomment to install httr2, needed to use QuantAQ's HTTP API.
 
-
 library(QuantAQAPIClient)
 library(httr2)
 library(clock)
@@ -32,9 +31,13 @@ colnames(QuantAQ_DPW)[colnames(QuantAQ_DPW)=="co_diff"] = "co"
 BEACO2N_DPW = subset(BEACO2N_DPW, select = c("datetime", "co_wrk_aux"))
 colnames(BEACO2N_DPW)[colnames(BEACO2N_DPW)=="co_wrk_aux"] = "co"
 colnames(BEACO2N_DPW)[colnames(BEACO2N_DPW)=="datetime"] = "timestamp"
+BEACO2N_DPW$co = BEACO2N_DPW$co * 1000 # convert from V to mV to be consistent with QuantAQ data.
 
-BEACO2N_DPW$timestamp = as.POSIXct(BEACO2N_DPW$timestamp, tz="UTC") # the default format in this case should align with given format
+# Round timestamps to nearest minute and force POSIXct formatting. 
+BEACO2N_DPW$timestamp = as.POSIXct(BEACO2N_DPW$timestamp, tz = "UTC")
+BEACO2N_DPW$timestamp = as.POSIXct(round(BEACO2N_DPW$timestamp, "mins"), tz = "UTC")
 QuantAQ_DPW$timestamp = as.POSIXct(QuantAQ_DPW$timestamp, format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+QuantAQ_DPW$timestamp = as.POSIXct(round(QuantAQ_DPW$timestamp, "mins"), tz = "UTC")
 
 merged_DPW = merge(QuantAQ_DPW, BEACO2N_DPW, by = "timestamp", suffixes = c("_Q", "_B"))
 print(t.test(merged_DPW$co_Q, merged_DPW$co_B, paired = TRUE))
