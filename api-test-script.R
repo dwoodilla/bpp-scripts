@@ -39,7 +39,7 @@ measurement = lapply(measurement, function(df) { # Apply this across all measure
   return(df)
 })
 
-reference <- lapply(reference, function(df) {
+reference = lapply(reference, function(df) {
   df = df %>% select(-(all_of(c("period_start", "period_end", "period_end_utc", "sn")))) 
   colnames(df)[colnames(df)=="period_start_utc"] = "timestamp"
   colnames(df)[colnames(df)=="pm25"] = "pm2_5"
@@ -61,4 +61,40 @@ merged = lapply(merged, function(df) {
   df = df %>% drop_na()
   return(df)
 })
+
+# Want to calculate set of timestamps for which RSD(co) < 10% across all reference locations. 
+
+timestamps_10pc_rsd = 
+  bind_rows(
+  lapply(names(reference), function(site) {
+    reference[[site]] %>% select(timestamp, co_ref = co) %>% mutate(location = site)
+    })
+  ) %>% 
+  pivot_wider(names_from = location, values_from = co_ref) %>%
+  drop_na() %>%
+  rowwise() %>% 
+  mutate(
+    vals = list(c_across(-timestamp)),
+    mean = mean(vals),
+    sd = sd(vals),
+    rsd = sd / mean
+  ) %>% 
+  ungroup() %>%
+  filter (rsd < .10) %>%
+  select(timestamp)
+timestamps_10pc_rsd = as.vector(timestamps_10pc_rsd$timestamp)
+
+# merged = filter(merged, timestamp %in% timestamps_10pc_rsd)
+merged = lapply(merged, function(df) {
+  filter(df, timestamp %in% timestamps_10pc_rsd)
+})
+
+
+
+
+
+
+
+
+
 
