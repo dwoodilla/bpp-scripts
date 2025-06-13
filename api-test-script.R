@@ -12,22 +12,51 @@ library(httr2)
 library(clock)
 library(dplyr)
 
-API_KEY = "6XB3KQVJ62BKQR3DVKX1MMGR"
-QUANTAQ_DPW_SN = "MOD-00811"
+# Create dataframes from CSV files in script directory
+measurement_files = list.files(
+  path = "./BEACO2N_measurements",
+  pattern = "\\.csv$",
+  full.names = TRUE
+)
+measurement = setNames(
+  lapply(measurement_files, read.csv),
+  tools::file_path_sans_ext(basename(measurement_files))
+)
 
-# Gave up trying to import hourly data and downloaded manually instead. 
-QuantAQ_DPW = read.csv("/Users/mikewoodilla/Desktop/summer25/bpp-scripts/MOD-00811_May.csv")
+reference_files = list.files(
+  path = "./reference_measurements",
+  pattern = "\\.csv$",
+  full.names = TRUE
+)
+reference = setNames(
+  lapply(reference_files, read.csv),
+  tools::file_path_sans_ext(basename(reference_files))
+)
 
-# Get CO data from BEACO2N sensor at DPW for the month of May with 1-hour resolution
-# Range: 2025-04-30 17:00:00-07:00 to 2025-05-31 16:00:00-07:00 == 2025-05-01 00:00:00-00:00 to 2025-05-31 23:00:00-00:00
-# This URL came from manually specifying parameters for BEACO2N node and dataset at below URL:
-# http://128.32.208.8/map/?ids=276&variables=co_wrk_aux&interval=1&chart_type=measurement&start=2025-04-30%2017:00:00&end=2025-05-31%2016:00:00&show_locations=true
-BEACO2N_DPW_link = "http://128.32.208.8/node/276/measurements_all/csv?name=Department%20of%20Public%20Works&interval=1&variables=co_wrk_aux&start=2025-04-30%2017:00:00&end=2025-05-31%2016:00:00&chart_type=measurement"
-BEACO2N_DPW = read.csv(BEACO2N_DPW_link)
+measurement = lapply(measurement, function(df) { # Apply this across all measurement locations.
+  colnames(df)[colnames(df)=="datetime"] = "timestamp" # rename "datetime" to "timestamp".
+  colnames(df)[colnames(df)=="co2_raw"] = "co2" # rename "co2_raw" to "co2"
+  df$timestamp = as.POSIXct(df$timestamp, tz = "UTC") # store "timestamp" as a POSIXct. 
+  df$timestamp = as.POSIXct(round(df$timestamp, "mins"), tz = "UTC") # round "timestamp" to nearest minute.
+  df = df %>% select(-(all_of(c("local_timestamp", "epoch", "node_file_id")))) # remove local_timestamp, epoch, and node_file_id fields.
+  suffixed_cols = grepl("_wrk_aux$", names(df))  # Identify cols with suffix "_wrk_aux"
+  df[suffixed_cols] = df[suffixed_cols] * 1000 # Convert measurements from V to mV.
+  names(df)[suffixed_cols] <- sub("_wrk_aux$", "", names(df)[suffixed_cols]) # Remove "_wrk_aux" suffix from col name.
+  
+  return(df)
+})
 
-# Clean data by removing impertinent fields. Also aligns names of dataframe cols.
-QuantAQ_DPW = subset(QuantAQ_DPW, select = c("timestamp", "co_diff"))
+reference <- lapply(reference, function(df) {
+  
+})
+
+
+# Clean QuantAQ data
+QuantAQ_DPW %>% select(-(starts_with("bin")))
+QuantAQ_DPW %>% select(-(all_of("id", "timestamp_local", "sn", "flag", "lat", "lon", "device_state")))
 colnames(QuantAQ_DPW)[colnames(QuantAQ_DPW)=="co_diff"] = "co"
+
+#Clean BEACO2N data
 BEACO2N_DPW = subset(BEACO2N_DPW, select = c("datetime", "co_wrk_aux"))
 colnames(BEACO2N_DPW)[colnames(BEACO2N_DPW)=="co_wrk_aux"] = "co"
 colnames(BEACO2N_DPW)[colnames(BEACO2N_DPW)=="datetime"] = "timestamp"
