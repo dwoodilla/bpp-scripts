@@ -11,18 +11,20 @@ library(QuantAQAPIClient)
 library(httr2)
 library(clock)
 library(dplyr)
+library(tidyr)
 
-# Create dataframes from CSV files in script directory
-measurement_files = list.files(
+# Create data frames from CSV files in script directory
+measurement_files = list.files( # Make a list of file names (locations) in BEACO2N_measurements folder in project directory.
   path = "./BEACO2N_measurements",
   pattern = "\\.csv$",
   full.names = TRUE
 )
-measurement = setNames(
+measurement = setNames( # Name each field of "measurement" for a file (location) in BEACO2N directory.
   lapply(measurement_files, read.csv),
   tools::file_path_sans_ext(basename(measurement_files))
 )
 
+# Analogous operations for QuantAQ reference data.
 reference_files = list.files(
   path = "./reference_measurements",
   pattern = "\\.csv$",
@@ -33,42 +35,28 @@ reference = setNames(
   tools::file_path_sans_ext(basename(reference_files))
 )
 
-measurement = lapply(measurement, function(df) { # Apply this across all measurement locations.
+# Clean BEACO2N data by location. 
+measurement = lapply(measurement, function(df) { # Apply this across all measurement locations within the "measurement" data frame. 
   colnames(df)[colnames(df)=="datetime"] = "timestamp" # rename "datetime" to "timestamp".
   colnames(df)[colnames(df)=="co2_raw"] = "co2" # rename "co2_raw" to "co2"
   df$timestamp = as.POSIXct(df$timestamp, tz = "UTC") # store "timestamp" as a POSIXct. 
-  df$timestamp = as.POSIXct(round(df$timestamp, "mins"), tz = "UTC") # round "timestamp" to nearest minute.
+  df$timestamp = as.POSIXct(round(df$timestamp, "hours"), tz = "UTC") # round "timestamp" to nearest minute.
   df = df %>% select(-(all_of(c("local_timestamp", "epoch", "node_file_id")))) # remove local_timestamp, epoch, and node_file_id fields.
   suffixed_cols = grepl("_wrk_aux$", names(df))  # Identify cols with suffix "_wrk_aux"
   df[suffixed_cols] = df[suffixed_cols] * 1000 # Convert measurements from V to mV.
   names(df)[suffixed_cols] <- sub("_wrk_aux$", "", names(df)[suffixed_cols]) # Remove "_wrk_aux" suffix from col name.
-  
+  # df = df %>% filter(!is.na(co))
+  df %>% drop_na()
   return(df)
 })
 
 reference <- lapply(reference, function(df) {
-  
+  df = df %>% select(-(all_of(c("period_start", "period_end", "period_end_utc", "sn")))) 
+  colnames(df)[colnames(df)=="period_start_utc"] = "timestamp"
+  df$timestamp = date_time_parse_RFC_3339(df$timestamp, offset = "%Ez")
+  df = df %>% filter(n_datapoints != 0)
+  # df = df %>% filter(!is.na(co))
+  df %>% drop_na()
+  return(df)
 })
-
-
-# Clean QuantAQ data
-QuantAQ_DPW %>% select(-(starts_with("bin")))
-QuantAQ_DPW %>% select(-(all_of("id", "timestamp_local", "sn", "flag", "lat", "lon", "device_state")))
-colnames(QuantAQ_DPW)[colnames(QuantAQ_DPW)=="co_diff"] = "co"
-
-#Clean BEACO2N data
-BEACO2N_DPW = subset(BEACO2N_DPW, select = c("datetime", "co_wrk_aux"))
-colnames(BEACO2N_DPW)[colnames(BEACO2N_DPW)=="co_wrk_aux"] = "co"
-colnames(BEACO2N_DPW)[colnames(BEACO2N_DPW)=="datetime"] = "timestamp"
-BEACO2N_DPW$co = BEACO2N_DPW$co * 1000 # convert from V to mV to be consistent with QuantAQ data.
-
-# Round timestamps to nearest minute and force POSIXct formatting. 
-BEACO2N_DPW$timestamp = as.POSIXct(BEACO2N_DPW$timestamp, tz = "UTC")
-BEACO2N_DPW$timestamp = as.POSIXct(round(BEACO2N_DPW$timestamp, "mins"), tz = "UTC")
-QuantAQ_DPW$timestamp = as.POSIXct(QuantAQ_DPW$timestamp, format = "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
-QuantAQ_DPW$timestamp = as.POSIXct(round(QuantAQ_DPW$timestamp, "mins"), tz = "UTC")
-
-merged_DPW = merge(QuantAQ_DPW, BEACO2N_DPW, by = "timestamp", suffixes = c("_Q", "_B"))
-print(t.test(merged_DPW$co_Q, merged_DPW$co_B, paired = TRUE))
-
 
