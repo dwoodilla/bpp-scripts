@@ -84,7 +84,6 @@ timestamps_10pc_rsd =
   select(timestamp)
 timestamps_10pc_rsd = as.vector(timestamps_10pc_rsd$timestamp)
 
-# merged = filter(merged, timestamp %in% timestamps_10pc_rsd)
 merged = lapply(merged, function(df) {
   filter(df, timestamp %in% timestamps_10pc_rsd)
 })
