@@ -1,14 +1,4 @@
-# **See ReadMe for QuantAQ's R API here: https://github.com/quant-aq/r-quantaq/blob/main/README.md**
-# See docs for QuantAQ's HTTP API here: https://docs.quant-aq.com/software-apis-and-libraries/quantaq-cloud-api 
-
 rm(list=ls()) # clear the R environment between script runs
-library(jsonlite)
-# install.packages("devtools") # uncomment to install devtools package, needed to install R API
-# devtools::install_github(repo="quant-aq/r-quantaq") # Uncomment to install QuantAQ's R API from GitHub.
-# install.packages("httr2") # uncomment to install httr2, needed to use QuantAQ's HTTP API.
-
-library(QuantAQAPIClient)
-library(httr2)
 library(clock)
 library(dplyr)
 library(tidyr)
@@ -45,18 +35,30 @@ measurement = lapply(measurement, function(df) { # Apply this across all measure
   suffixed_cols = grepl("_wrk_aux$", names(df))  # Identify cols with suffix "_wrk_aux"
   df[suffixed_cols] = df[suffixed_cols] * 1000 # Convert measurements from V to mV.
   names(df)[suffixed_cols] <- sub("_wrk_aux$", "", names(df)[suffixed_cols]) # Remove "_wrk_aux" suffix from col name.
-  # df = df %>% filter(!is.na(co))
-  df %>% drop_na()
+  df = df %>% drop_na()
   return(df)
 })
 
 reference <- lapply(reference, function(df) {
   df = df %>% select(-(all_of(c("period_start", "period_end", "period_end_utc", "sn")))) 
   colnames(df)[colnames(df)=="period_start_utc"] = "timestamp"
+  colnames(df)[colnames(df)=="pm25"] = "pm2_5"
   df$timestamp = date_time_parse_RFC_3339(df$timestamp, offset = "%Ez")
-  df = df %>% filter(n_datapoints != 0)
-  # df = df %>% filter(!is.na(co))
-  df %>% drop_na()
+  df = df %>% drop_na()
+  return(df)
+})
+
+merged = mapply(
+  function(meas, ref) {
+    merge(meas, ref, by = "timestamp", suffixes = c("_meas", "_ref"), all = TRUE)
+  },
+  measurement, 
+  reference, 
+  SIMPLIFY = FALSE
+  )
+
+merged = lapply(merged, function(df) {
+  df = df %>% drop_na()
   return(df)
 })
 
