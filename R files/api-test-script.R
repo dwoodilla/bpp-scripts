@@ -64,10 +64,11 @@ merged = lapply(merged, function(df) {
 
 # Want to calculate set of timestamps for which RSD(co) < 10% across all reference locations. 
 
-timestamps_10pc_rsd = 
+timestamps_10percent_rsd = 
   bind_rows(
   lapply(names(reference), function(site) {
-    reference[[site]] %>% select(timestamp, co_ref = co) %>% mutate(location = site)
+    df = reference[[site]] %>% select(timestamp, co_ref = co) %>% mutate(location = site)
+    return(df)
     })
   ) %>% 
   pivot_wider(names_from = location, values_from = co_ref) %>%
@@ -82,10 +83,10 @@ timestamps_10pc_rsd =
   ungroup() %>%
   filter (rsd < .10) %>%
   select(timestamp)
-timestamps_10pc_rsd = as.vector(timestamps_10pc_rsd$timestamp)
+timestamps_10percent_rsd = as.vector(timestamps_10percent_rsd$timestamp)
 
 merged = lapply(merged, function(df) {
-  filter(df, timestamp %in% timestamps_10pc_rsd)
+  filter(df, timestamp %in% timestamps_10percent_rsd)
 })
 
 
