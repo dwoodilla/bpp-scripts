@@ -1,0 +1,26 @@
+Name,HubName,HubDist,Sensor,Lat,Lon,Node_id,id
+Myron J. Francis Elementary,pema (QGIS says dpw?),3.691016637,Sensor01,41.84094,-71.36097,250,250
+Reservoir Ave Elementary,dpw,1.574427331,Sensor03,41.79157,-71.42788,258,258
+Alpert Medical School,dpw,1.737054457,Sensor08,41.81899,-71.40828,274,274
+Department of Public Works,dpw,0.009465628,Sensor09,41.79521,-71.39783,276,276
+CCRI - Liston Campus,dpw,1.175429655,Sensor14,41.80745,-71.41341,259,259
+South Providence Library,dpw,0.956909733,Sensor16,41.80205,-71.41378,263,263
+Brown-Fox Point Early Childhood Learning Center,dpw,2.043341327,Sensor18,41.82469,-71.39755,269,269
+Rock Spot Climbing Gym,dpw,1.865833979,Sensor19,41.81478,-71.42251,272,272
+Child & Family Services,dpw,0.399295823,Sensor21,41.7909,-71.4031,256,256
+E-Cubed Academy Senior High,pema,0.753947453,Sensor05,41.85417,-71.43444,264,264
+Rochambeau Library,pema,1.279909176,Sensor06,41.84621,-71.39663,267,267
+Smith Hill Library,pema,1.169347368,Sensor07,41.83549,-71.42217,270,270
+Main St. Martial Arts,pema,1.030870951,Sensor15,41.85521,-71.40042,262,262
+Blackstone Residence,pema,2.21948185,Sensor17,41.835491,-71.383413,266,266
+Rockefeller Library,pema,2.003204513,Sensor20,41.82551,-71.40528,253,253
+Providence College,pema,1.17835816,Sensor24,41.84272,-71.43888,268,268
+Providence Emergency Management Agency,pema,0.013161491,Sensor25,41.852240 ,-71.419830 ,271,271
+Silver Lake Residence,pha,0.59017005,Sensor02,41.810533,-71.447651,254,254
+Anthony Carnevale Elementary ,pha,0.4895561,Sensor04,41.81678,-71.46458,261,261
+Zuccolo Recreation Center,pha,1.324475174,Sensor10,41.82287,-71.43067,251,251
+West End Community Center,pha,1.637643394,Sensor11,41.80439,-71.42825,252,252
+United Way ,pha,0.72066418,Sensor12,41.81803,-71.44121,255,255
+Providence Housing Authority ,pha,0.014918584,Sensor13,41.81715,-71.455331,257,257
+Mt. Pleasant Hardware,pha,1.152945354,Sensor22,41.83168,-71.444401,260,260
+Rhode Island College,pha,1.810079245,Sensor23,41.84212,-71.46526,265,265
