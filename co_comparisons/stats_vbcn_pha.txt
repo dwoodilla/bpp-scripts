@@ -1,0 +1,31 @@
+QuantAQ Summary:
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ 0.5955  0.7244  0.7550  0.7808  0.8089  1.1854 
+
+Reference Summary:
+    Min.  1st Qu.   Median     Mean  3rd Qu.     Max. 
+0.008561 0.097604 0.127321 0.139518 0.169570 0.416830 
+
+Residual Summary:
+   Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+ 0.5133  0.5957  0.6361  0.6413  0.6787  0.8739 
+
+Residual Statistics:
+	MAE:       0.641294
+	RMSE:      0.643963
+	Pearson r: 0.793107
+	R^2:       0.629019
+
+t-test:
+
+	Welch Two Sample t-test
+
+data:  qaq and ref
+t = 325.83, df = 5936.1, p-value < 2.2e-16
+alternative hypothesis: true difference in means is not equal to 0
+95 percent confidence interval:
+ 0.6374355 0.6451523
+sample estimates:
+mean of x mean of y 
+0.7808124 0.1395185 
+ 
