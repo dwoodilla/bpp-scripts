@@ -24,11 +24,9 @@ dec_df_dpw$residual = dec_df_dpw$co_quantaq_dpw - dec_df_dpw$co_aqs_cranston
 dec_df_pha$residual = dec_df_pha$co_quantaq_pha - dec_df_pha$co_aqs_cranston
 dec_df_pema$residual = dec_df_pema$co_quantaq_pema - dec_df_pema$co_aqs_cranston
 
-print_stats = function(qaq, aqs) {
-    stopifnot(is.vector(qaq), is.double(qaq))
-    stopifnot(is.vector(aqs), is.double(aqs))
-    stopifnot(length(aqs)==length(qaq))
+print_stats = function(qaq, aqs, filename) {
     stopifnot(is.double(qaq), is.double(aqs), length(qaq)==length(aqs))
+    stopifnot(is.character(filename))
 
     res = qaq - aqs
     MAE = mean(abs(res))
@@ -38,13 +36,15 @@ print_stats = function(qaq, aqs) {
     ttest = t.test(qaq, aqs)
 
     # Capture printed outputs as text lines
-    qaq_txt     <- capture.output(summary(qaq))
-    aqs_txt     <- capture.output(summary(aqs))
-    res_txt     <- capture.output(summary(res))
-    ttest_txt   <- capture.output(print(ttest))
-  
+    qaq_txt     =  capture.output(summary(qaq))
+    aqs_txt     =  capture.output(summary(aqs))
+    res_txt     =  capture.output(summary(res))
+    ttest_txt   =  capture.output(print(ttest))
+    
+    sink(filename)
+    on.exit(sink())
     # Combine everything for printing
-    out <- c(
+    out = c(
         "QuantAQ Summary:",
         qaq_txt,
         "",
@@ -65,7 +65,7 @@ print_stats = function(qaq, aqs) {
     )
     cat(paste0(out, collapse = "\n"), "\n")
 }
-print_stats(aqs=dec_df_dpw$co_aqs_cranston, qaq=dec_df_dpw$co_quantaq_dpw)
+print_stats(aqs=dec_df_dpw$co_aqs_cranston, qaq=dec_df_dpw$co_quantaq_dpw, filename="./text.txt")
 
 # Plot time series with residual for each QuantAQ/AQS pairing.
 png(
