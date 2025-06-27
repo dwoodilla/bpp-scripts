@@ -1,5 +1,13 @@
 {
     "workbench.editorAssociations": {
         "file:/**/*.csv": "jupyter-data-wrangler"
-    }
+    }, 
+    
+  "r.rterm.windows": "C:\\Users\\dwoodill\\AppData\\Local\\Programs\\R\\R-4.5.1\\bin\\R.exe",
+  "r.rpath.windows": "C:\\Users\\dwoodill\\AppData\\Local\\Programs\\R\\R-4.5.1\\bin\\R.exe",
+  "r.alwaysUseActiveTerminal": true,
+  "r.bracketedPaste": true,
+  "r.sessionWatcher": true
 }
+
+
