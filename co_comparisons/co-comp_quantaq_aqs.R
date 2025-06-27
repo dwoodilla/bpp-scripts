@@ -79,7 +79,7 @@ print_stats(ref=dec_vaqs_df_pha$co_aqs_cranston, qaq=dec_vaqs_df_pha$co_quantaq_
 
 # Plot time series with residual for each QuantAQ/AQS pairing (only for times when QAQ and AQS are both active)
 png(
-    filename="./co_comparisons/dpw_aqs.png",
+    filename="./co_comparisons/ts_dpw_aqs.png",
     width = 10*300, height=10*300, res=300
 )
 timePlot(
@@ -105,7 +105,7 @@ timePlot(
 dev.off()
 
 png(
-    filename="./co_comparisons/pha_aqs.png",
+    filename="./co_comparisons/ts_pha_aqs.png",
     width = 10*300, height=10*300, res=300
 )
 timePlot(
@@ -131,7 +131,7 @@ timePlot(
 dev.off()
 
 png(
-    filename="./co_comparisons/pema_aqs.png",
+    filename="./co_comparisons/ts_pema_aqs.png",
     width = 10*300, height=10*300, res=300
 )
 timePlot(
@@ -164,7 +164,7 @@ combined_qaq_df = combined_df %>%
 
 # Plot DPW versus extended AQS data
 png(
-    filename="./co_comparisons/dpw_aqs_ext.png",
+    filename="./co_comparisons/tv_dpw_aqs.png",
     width = 10*300, height=10*300, res=300
 )
 timeVariation(
@@ -178,7 +178,7 @@ dev.off()
 
 # Plot pha versus extended AQS data
 png(
-    filename="./co_comparisons/pha_aqs_ext.png",
+    filename="./co_comparisons/tv_pha_aqs.png",
     width = 10*300, height=10*300, res=300
 )
 timeVariation(
@@ -192,7 +192,7 @@ dev.off()
 
 # Plot pema versus extended AQS data
 png(
-    filename="./co_comparisons/pema_aqs_ext.png",
+    filename="./co_comparisons/tv_pema_aqs.png",
     width = 10*300, height=10*300, res=300
 )
 timeVariation(
@@ -229,7 +229,7 @@ print_stats(ref=vbcn_df_pha$co_beaco2n_pha, qaq=vbcn_df_pha$co_quantaq_pha, file
 
 # Plot time series with residual for each QuantAQ/BEACO2N pairing (only for times when QAQ and BEACO2N are both active)
 png(
-    filename="./co_comparisons/dpw_bcn.png",
+    filename="./co_comparisons/ts_dpw_bcn.png",
     width = 10*300, height=10*300, res=300
 )
 timePlot(
@@ -256,7 +256,7 @@ timePlot(
 dev.off()
 
 png(
-    filename="./co_comparisons/pha_bcn.png",
+    filename="./co_comparisons/ts_pha_bcn.png",
     width = 10*300, height=10*300, res=300
 )
 timePlot(
@@ -283,7 +283,7 @@ timePlot(
 dev.off()
 
 png(
-    filename="./co_comparisons/pema_bcn.png",
+    filename="./co_comparisons/ts_pema_bcn.png",
     width = 10*300, height=10*300, res=300
 )
 timePlot(
@@ -307,4 +307,44 @@ timePlot(
     ), 
     date.pad=TRUE
 ) # nolint
+dev.off()
+
+# Plot time variations
+png(
+    filename="./co_comparisons/tv_dpw_bcn.png",
+    width = 10*300, height=10*300, res=300
+)
+timeVariation(
+    vbcn_df_dpw, 
+    pollutant=c("co_beaco2n_dpw", "co_quantaq_dpw", "residual"),
+    name.pol=c("BEACO2N @ DPW", "QuantAQ @ DPW", "QuantAQ - BEACO2N"),
+    ylab="CO (ppm)",
+    main="QuantAQ DPW vs. BEACO2N DPW"
+)
+dev.off()
+
+png(
+    filename="./co_comparisons/tv_pema_bcn.png",
+    width = 10*300, height=10*300, res=300
+)
+timeVariation(
+    vbcn_df_pema, 
+    pollutant=c("co_beaco2n_pema", "co_quantaq_pema", "residual"),
+    name.pol=c("BEACO2N @ PEMA", "QuantAQ @ PEMA", "QuantAQ - BEACO2N"),
+    ylab="CO (ppm)",
+    main="QuantAQ PEMA vs. BEACO2N PEMA"
+)
+dev.off()
+
+png(
+    filename="./co_comparisons/tv_pha_bcn.png",
+    width = 10*300, height=10*300, res=300
+)
+timeVariation(
+    vbcn_df_pha, 
+    pollutant=c("co_beaco2n_pha", "co_quantaq_pha", "residual"),
+    name.pol=c("BEACO2N @ PHA", "QuantAQ @ PHA", "QuantAQ - BEACO2N"),
+    ylab="CO (ppm)",
+    main="QuantAQ PHA vs. BEACO2N PHA"
+)
 dev.off()
