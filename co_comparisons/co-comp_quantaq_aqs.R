@@ -73,9 +73,9 @@ write.csv(dec_vaqs_df_pema, file="./co_comparisons/dec_vaqs_df_pema.csv", row.na
 
 
 # Compare the CO values of Cranston and QuantAQ sites (disregarding temp and rh)
-print_stats(ref=dec_vaqs_df_dpw$co_aqs_cranston, qaq=dec_vaqs_df_dpw$co_quantaq_dpw, filename="./co_comparisons/stats_dec_vaqs_dpw.txt")
-print_stats(ref=dec_vaqs_df_pema$co_aqs_cranston, qaq=dec_vaqs_df_pema$co_quantaq_pema, filename="./co_comparisons/stats_dec_vaqs_pema.txt")
-print_stats(ref=dec_vaqs_df_pha$co_aqs_cranston, qaq=dec_vaqs_df_pha$co_quantaq_pha, filename="./co_comparisons/stats_dec_vaqs_pha.txt")
+print_stats(ref=dec_vaqs_df_dpw$co_aqs_cranston, qaq=dec_vaqs_df_dpw$co_quantaq_dpw, filename="./co_comparisons/stats_vaqs_dpw.txt")
+print_stats(ref=dec_vaqs_df_pema$co_aqs_cranston, qaq=dec_vaqs_df_pema$co_quantaq_pema, filename="./co_comparisons/stats_vaqs_pema.txt")
+print_stats(ref=dec_vaqs_df_pha$co_aqs_cranston, qaq=dec_vaqs_df_pha$co_quantaq_pha, filename="./co_comparisons/stats_vaqs_pha.txt")
 
 # Plot time series with residual for each QuantAQ/AQS pairing (only for times when QAQ and AQS are both active)
 png(
