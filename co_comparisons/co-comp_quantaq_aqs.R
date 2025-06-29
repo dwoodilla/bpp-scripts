@@ -4,6 +4,7 @@
 library(openair)
 library(dplyr)
 library(clock)
+usethis::use_readme_rmd()
 
 combined_df = read.csv("./combined_dataset.csv")
 combined_df$date = as.POSIXct(combined_df$date, tz="UTC")
@@ -50,6 +51,51 @@ print_stats = function(qaq, ref, filename) {
     cat(paste0(out, collapse = "\n"), "\n")
 }
 
+co_time_series = function(df, qaq_pol, qaq_site, ref_pol, ref_site, filepath) {
+
+    png(
+        filename=filepath,
+        width = 10*300, height=10*300, res=300
+    )
+    timePlot(
+        df, 
+        pollutant=c(ref_pol, qaq_pol, "residual"),
+        name.pol=c(ref_site, qaq_site, paste(qaq_site, "–", ref_site)), 
+        main=paste(qaq_site, "vs", ref_site),
+        smooth=TRUE, 
+        ci=TRUE,
+        group=TRUE,
+        ylim = c(-0.2,1.4),
+        ylab="CO (ppm)",
+        y.relation = "same",
+        lty=1,
+        scales = list(
+            y = list(
+                at = seq(-0.2, 1.4, by = 0.2),    # tick positions every 0.2
+                labels = seq(-0.2, 1.4, by = 0.2),# matching labels
+                tck = c(1, 0)                     # draw ticks into the plotting area
+            )
+        )
+    ) # nolint
+    dev.off() 
+}
+
+co_time_variation = function(df, qaq_pol, qaq_site, ref_pol, ref_site, filepath) {
+    # Plot time variations
+    png(
+        filename=filepath,
+        width = 10*300, height=10*300, res=300
+    )
+    timeVariation(
+        df, 
+        pollutant=c(ref_pol, qaq_pol, "residual"),
+        name.pol=c(ref_site, qaq_site, paste(qaq_site, "–", ref_site)),
+        ylab="CO (ppm)",
+        main=paste(qaq_site, "vs", ref_site)
+    )
+    dev.off()
+}
+
 # COMPARE QUANTAQ TO AQS (BEACO2N BELOW)
 
 merged_vaqs_df = read.csv("./intermediary_datasets/merge_quantaq_aqs.csv")
@@ -77,32 +123,48 @@ print_stats(ref=dec_vaqs_df_dpw$co_aqs_cranston, qaq=dec_vaqs_df_dpw$co_quantaq_
 print_stats(ref=dec_vaqs_df_pema$co_aqs_cranston, qaq=dec_vaqs_df_pema$co_quantaq_pema, filename="./co_comparisons/stats_vaqs_pema.txt")
 print_stats(ref=dec_vaqs_df_pha$co_aqs_cranston, qaq=dec_vaqs_df_pha$co_quantaq_pha, filename="./co_comparisons/stats_vaqs_pha.txt")
 
-# Plot time series with residual for each QuantAQ/AQS pairing (only for times when QAQ and AQS are both active)
-png(
-    filename="./co_comparisons/ts_dpw_aqs.png",
-    width = 10*300, height=10*300, res=300
+
+co_time_series(
+    df=dec_vaqs_df_dpw, 
+    filepath="./co_comparisons/ts_dpw_aqs.png", 
+    qaq_pol="co_quantaq_dpw",
+    ref_pol="co_aqs_cranston",
+    qaq_site="QuantAQ @ DPW",
+    ref_pol="AQS @ Cranston"
 )
-timePlot(
-    dec_vaqs_df_dpw, 
-    pollutant=c("co_aqs_cranston", "co_quantaq_dpw", "residual"),
-    name.pol=c("AQS @ Cranston", "QuantAQ @ DPW", "QuantAQ - AQS"), 
-    main="QuantAQ DPW vs. AQS Cranston\nOverlapping timestamps",
-    smooth=TRUE, 
-    ci=TRUE,
-    group=TRUE,
-    ylim = c(-0.2,1.4),
-    ylab="CO (ppm)",
-    y.relation = "same",
-    lty=1,
-    scales = list(
-        y = list(
-            at = seq(-0.2, 1.4, by = 0.2),    # tick positions every 0.2
-            labels = seq(-0.2, 1.4, by = 0.2),# matching labels
-            tck = c(1, 0)                     # draw ticks into the plotting area
-        )
-    )
-) # nolint
-dev.off()
+
+# # Plot time series with residual for each QuantAQ/AQS pairing (only for times when QAQ and AQS are both active)
+# png(
+#     filename="./co_comparisons/ts_dpw_aqs.png",
+#     width = 10*300, height=10*300, res=300
+# )
+# timePlot(
+#     dec_vaqs_df_dpw, 
+#     pollutant=c("co_aqs_cranston", "co_quantaq_dpw", "residual"),
+#     name.pol=c("AQS @ Cranston", "QuantAQ @ DPW", "QuantAQ - AQS"), 
+#     main="QuantAQ DPW vs. AQS Cranston\nOverlapping timestamps",
+#     smooth=TRUE, 
+#     ci=TRUE,
+#     group=TRUE,
+#     ylim = c(-0.2,1.4),
+#     ylab="CO (ppm)",
+#     y.relation = "same",
+#     lty=1,
+#     scales = list(
+#         y = list(
+#             at = seq(-0.2, 1.4, by = 0.2),    # tick positions every 0.2
+#             labels = seq(-0.2, 1.4, by = 0.2),# matching labels
+#             tck = c(1, 0)                     # draw ticks into the plotting area
+#         )
+#     )
+# ) # nolint
+# dev.off()
+
+co_time_series(
+    df=dec_vaqs_df_pha, 
+    filename="./co_comparisons/ts_pha_aqs.png",
+    qaq_pol="co_quantaq_pha"
+)
 
 png(
     filename="./co_comparisons/ts_pha_aqs.png",
@@ -348,3 +410,67 @@ timeVariation(
     main="QuantAQ PHA vs. BEACO2N PHA"
 )
 dev.off()
+
+
+# TODO: IN PROGRESS
+# co_time_series <- function(df) {
+#   # Extract the name of the dataframe passed to the function
+#   df_name <- deparse(substitute(df))
+  
+#   # Extract sensor type (chars 2-4) and site code (everything after last '_')
+#   ref_type <- substr(df_name, 2, 4)  # characters 2-4
+#   ref_column_label = if(ref_type=="aqs") "aqs" else "beaco2n"
+#   qaq_site <- grep(".*_", "", df_name)  # everything after last '_'
+
+#   qaq_ledgend_label = paste("QuantAQ @", toupper(qaq_site))
+#   ref_ledgend_label = paste(toupper(ref_column_label), "@", if(ref_type=="aqs") "Cranston" else toupper(ref_site))
+  
+#   # Set reference and QA/QC site names
+#   if (ref_type == "aqs") {
+#     ref_site <- "cranston"
+#   } else if (ref_type == "bcn") {
+#     ref_site <- qaq_site
+#   } else {
+#     stop("Unknown sensor type in dataframe name. Expected 'vaqs' or 'vbcn'.")
+#   }
+  
+#   # Pollutant variable names with new format
+#   qaq_pol <- paste0("co_quantaq_", qaq_site)
+#   ref_pol = paste0("co_",ref_column_label,ref_site)
+#   # ref_pol <- if(ref_type=="bcn") paste0("co_beaco2n_",ref_site) else paste0("co_aqs_",ref_site)
+  
+#   # Create output filepath
+#   filepath <- paste0("./co_comparisons/","ts_",qaq_site,"_",ref_type,".png")
+  
+#   png(
+#     filename = filepath,
+#     width = 10 * 300, height = 10 * 300, res = 300
+#   )
+  
+#   timePlot(
+#     df,
+#     pollutant = c(ref_pol, qaq_pol, "residual"),
+#     name.pol = c(
+#         ref_ledgend_label,
+#         qaq_ledgend_label, 
+#         paste(qaq_ledgend_label, "–", ref_ledgend_label)
+#     )
+#     main = paste(qaq_site, "vs", ref_site),
+#     smooth = TRUE,
+#     ci = TRUE,
+#     group = TRUE,
+#     ylim = c(-0.2, 1.4),
+#     ylab = "CO (ppm)",
+#     y.relation = "same",
+#     lty = 1,
+#     scales = list(
+#       y = list(
+#         at = seq(-0.2, 1.4, by = 0.2),
+#         labels = seq(-0.2, 1.4, by = 0.2),
+#         tck = c(1, 0)
+#       )
+#     )
+#   )
+  
+#   dev.off()
+# }
