@@ -4,6 +4,8 @@ library(dplyr)
 library(clock)
 library(ggplot2)
 library(lubridate)
+library(patchwork)
+library(tidyverse)
 
 combined_df = read.csv("./combined_dataset.csv")
 combined_df$date = as.POSIXct(combined_df$date, tz="UTC")
@@ -14,20 +16,19 @@ print_stats = function(qaq, ref, filename, qaq_site, ref_site, ref_type) {
     stopifnot(is.double(qaq), is.double(ref), length(qaq)==length(ref), is.character(filename))
     stopifnot(is.character(qaq_site), is.character(ref_site), is.character(ref_type))
 
-    res = qaq - ref
-    MAE = mean(abs(res))
-    RMSE = sqrt(mean(res^2))
-    rcor = cor(qaq, ref)
-    Rsq = rcor^2 # NOTE: assuming this is a linear least-squares regression with a single independent variable
-    ttest = t.test(qaq, ref)
+    # res = qaq - ref
+    # MAE = mean(abs(res))
+    # RMSE = sqrt(mean(res^2))
+    # rcor = cor(qaq, ref)
+    # Rsq = rcor^2 # NOTE: assuming this is a linear least-squares regression with a single independent variable
+    # ttest = t.test(qaq, ref)
 
-    # Capture printed outputs as text lines
-    qaq_txt     =  capture.output(summary(qaq))
-    ref_txt     =  capture.output(summary(ref))
-    res_txt     =  capture.output(summary(res))
-    ttest_txt   =  capture.output(print(ttest))
+    # # Capture printed outputs as text lines
+    # qaq_txt     =  capture.output(summary(qaq))
+    # ref_txt     =  capture.output(summary(ref))
+    # res_txt     =  capture.output(summary(res))
+    # ttest_txt   =  capture.output(print(ttest))
 
-    # stat_boxplot(qaq)
   plt = ggplot() +
     geom_boxplot(aes(x = paste0("QuantAQ @ ", qaq_site), y = qaq), fill = "skyblue", width = 0.6) +
     geom_boxplot(aes(x = paste(ref_type, "@", ref_site), y = ref), fill = "salmon", width = 0.6) +
@@ -45,11 +46,11 @@ print_stats = function(qaq, ref, filename, qaq_site, ref_site, ref_type) {
 
 co_distribution = function(qaq, ref, filename, qaq_site, ref_site, ref_type) {
     plt = ggplot() +
-    geom_histogram(aes(x = qaq, y = after_stat(density)),
-                 fill = "skyblue", bins = 30) +
-    geom_histogram(aes(x = ref, y = after_stat(density)),
-                 fill = "salmon", bins = 30) +
-    xlab("CO (ppm)")
+    geom_histogram(aes(x = qaq, y = after_stat(count/sum(count))),
+                 fill = "skyblue", binwidth = 0.01) +
+    geom_histogram(aes(x = ref, y = after_stat(count/sum(count))),
+                 fill = "salmon", binwidth = 0.01) +
+    xlab("CO (ppm)") +
     ylab("Frequency") +
     theme_bw()
     ggsave(filename=filename, plot=plt,  width=6, height=6, dpi=300, units="in")
@@ -85,7 +86,7 @@ co_time_series = function(df, qaq_pol, qaq_display_label, ref_pol, ref_display_l
         tck = c(1, 0)
       )
     ),
-    period="2 hour"
+    period="2 hour" # Looking at plots, this cannot possibly be 2 hours... is way too smooth.
   )
   dev.off()
 }
@@ -245,6 +246,22 @@ print_stats(ref=vaqs_df_dpw$co_aqs_cranston, qaq=vaqs_df_dpw$co_quantaq_dpw, fil
 print_stats(ref=vaqs_df_pema$co_aqs_cranston, qaq=vaqs_df_pema$co_quantaq_pema, filename="./plots/stats_vaqs_pema.png", qaq_site="PEMA", ref_site="Cranston", ref_type="AQS")
 print_stats(ref=vaqs_df_pha$co_aqs_cranston, qaq=vaqs_df_pha$co_quantaq_pha, filename="./plots/stats_vaqs_pha.png", qaq_site="PHA", ref_site="Cranston", ref_type="AQS")
 
+plt = ggplot() +
+    geom_boxplot(aes(x = "QuantAQ @ DPW", y = vaqs_df_dpw$co_quantaq_dpw), fill = "skyblue", width = 0.6) +
+    geom_boxplot(aes(x = "QuantAQ @ PEMA", y = vaqs_df_pema$co_quantaq_pema), fill = "green4", width = 0.6) +
+    geom_boxplot(aes(x = "QuantAQ @ PHA", y = vaqs_df_pema$co_quantaq_pha), fill = "purple", width = 0.6) +
+    geom_boxplot(aes(x = "AQS @ Cranston", y = vaqs_df_dpw$co_aqs_cranston), fill = "salmon", width = 0.6) +
+    xlab("Site") +
+    ylab("CO (ppm)") +
+    scale_y_continuous(
+        limits=c(0, 1.2),
+        breaks=waiver(),
+        minor_breaks=NULL
+    ) +
+    ggtitle("Summary statistics for QuantAQ vs. Reference") +
+    theme_bw()
+  ggsave(filename="./plots/stats_vaqs_total.png", plot=plt, width=6, height=6, dpi=300, units="in")
+
 co_distribution(ref=vaqs_df_dpw$co_aqs_cranston, qaq=vaqs_df_dpw$co_quantaq_dpw, filename="./plots/dist_vaqs_dpw.png")
 co_distribution(ref=vaqs_df_pha$co_aqs_cranston, qaq=vaqs_df_pha$co_quantaq_pha, filename="./plots/dist_vaqs_pha.png")
 co_distribution(ref=vaqs_df_pema$co_aqs_cranston, qaq=vaqs_df_pema$co_quantaq_pema, filename="./plots/dist_vaqs_pema.png")
@@ -305,6 +322,8 @@ co_time_variation(
     ref_type = "aqs",
     filename = "./plots/tv_aqs_pema.png"
 )
+
+
 
 # co_time_series(vaqs_df_dpw, df_parser(vaqs_df_dpw))
 # co_time_series(vaqs_df_pha, df_parser(vaqs_df_pha))
@@ -371,7 +390,7 @@ co_time_variation(
     qaq_display_label="QuantAQ @ DPW",
     ref_display_label = "BEACO2N @ DPW",
     ref_type = "bcn",
-    filename="./plots/ts_bcn_dpw.png" 
+    filename="./plots/tv_bcn_dpw.png" 
 )
 co_time_variation(
     vbcn_df_pha, 
@@ -380,7 +399,7 @@ co_time_variation(
     qaq_display_label="QuantAQ @ PHA",
     ref_display_label = "BEACO2N @ PHA",
     ref_type = "bcn",
-    filename="./plots/ts_bcn_pha.png" 
+    filename="./plots/tv_bcn_pha.png" 
 )
 co_time_variation(
     vbcn_df_pema, 
@@ -389,7 +408,7 @@ co_time_variation(
     qaq_display_label="QuantAQ @ PEMA",
     ref_display_label = "BEACO2N @ PEMA",
     ref_type = "bcn",
-    filename="./plots/ts_bcn_pema.png" 
+    filename="./plots/tv_bcn_pema.png" 
 )
 
 
@@ -404,10 +423,33 @@ co_time_variation(
 
 # BEACO2N DRIFT
 # New df with only beaco2n CO and aqs_cranston cols, dropping rows that do not have at least one non-NA column other than date.
-# bcn_aqs_df = combined_df %>% 
-#     select(matches("^(?:co_beaco2n_(?:dpw|pema|pha)|co_aqs_(?:cranston|myron)|date)$")) %>% 
-#     filter(if_any(-date, ~ !is.na(.)))
+bcn_aqs_df = combined_df %>% 
+    select(matches("^(?:co_beaco2n_(?:dpw|pema|pha)|co_aqs_(?:cranston|myron)|date)$")) %>% 
+    filter(if_any(-date, ~ !is.na(.)))
 # write.csv(bcn_aqs_df, "./test.csv")
+# png(
+#     filename="./plots/bcn_drift.png",
+#     width = 10 * 300, height = 10 * 300, res = 300
+# )
+# bcn_trends = smoothTrend(
+#     bcn_aqs_df, 
+#     pollutant=c("co_beaco2n_dpw","co_beaco2n_pha","co_beaco2n_pema"),
+#     pol.names=c("BEACO2N at DPW","BEACO2N at PHA","BEACO2N at PEMA"),
+#     cols=c("skyblue","salmon","green4"),
+#     type="year"
+# )$data
+# bcn_trends_long = as.tibble(bcn_trends) %>% pivot_longer(
+#     cols=c("co_beaco2n_dpw", "co_beaco2n_pha", "co_beaco2n_pema"),
+#     names_to = "variable",
+#     values_to = "concentration"
+# )
+# plt = ggplot(bcn_trends_long, aes(x = date, y = concentration, color = variable)) +
+#   geom_point() +
+#   geom_line() +                   # optional if you want lines connecting points
+#   labs(x = "Date", y = "Concentration",
+#        color = "Variable") +
+#   theme_minimal()
+# ggsave(filename="./plots/bcn_drift.png", plot=plt, width=6, height=6, units="in", dpi=300)
 
 # # Plot BEACO2N PEMA vs both AQS sensors for as long as there is BEACO2N data.
 # png(
@@ -440,46 +482,105 @@ co_time_variation(
 # Comparing QuantAQ with each other:
 quantaq_df = combined_df %>% 
     select(matches("^(?:co_quantaq_(?:dpw|pema|pha)|date)$")) %>%
-    filter(if_all(-date, ~ !is.na(.)))
-write.csv(quantaq_df, "./test2.csv")
+    filter(if_all(-date, ~ !is.na(.))) # filter for times when all are operating
 
-plt = ggplot() +
-    
+# x_lim = range(quantaq_df[, c("co_quantaq_dpw", "co_quantaq_pha", "co_quantaq_pema")])
+# y_lim = c(0,0.20)
+
+# dpw_plt = ggplot(quantaq_df, aes(co_quantaq_dpw)) +
+#     geom_histogram(,
+#         color = "black", fill="steelblue", binwidth = 0.1, alpha=0.6) +
+#     scale_x_continuous(limits=c(0,1.6), breaks=seq(0,1.6,by=0.1)) +
+#     theme(axis.text.x = element_text(angle = 40, hjust = 1)) +
+#     xlab("CO (ppm)") +
+#     ylab("Frequency (%)") +
+#     ylim(y_lim) +
+#     ggtitle("DPW")
+
+# pha_plt = ggplot() +
+#     geom_histogram(aes(x = quantaq_df$co_quantaq_pha, y = after_stat(count/sum(count))),
+#         color = "black", fill="steelblue", binwidth=0.1, alpha=0.6) +
+#     scale_x_continuous(limits=c(0,1.6), breaks=seq(0,1.6,by=0.1)) +
+#     theme(axis.text.x = element_text(angle = 40, hjust = 1)) +
+#     xlab("CO (ppm)") +
+#     ylab("Frequency (%)") +
+#     ylim(y_lim) +
+#     ggtitle("PHA")
+
+# pema_plt = ggplot() +
+#     geom_histogram(aes(x = quantaq_df$co_quantaq_pema, y = after_stat(count/sum(count))),
+#         color = "black", fill="steelblue", binwidth=0.1, alpha=0.6) +
+#     scale_x_continuous(limits=c(0,1.6), breaks=seq(0,1.6,by=0.1)) +
+#     theme(axis.text.x = element_text(angle = 40, hjust = 1)) +
+#     xlab("CO (ppm)") +
+#     ylab("Frequency (%)") +
+#     ylim(y_lim) +
+#     ggtitle("PEMA")
+
+# ggsave(plot=wrap_plots(dpw_plt, pha_plt, pema_plt, nrow=1, guides="collect"), filename="./plots/ts_qaq_comp.png", width=11, height=8.5, units="in")
+
+hist = ggplot() +
+    geom_histogram(aes(x = quantaq_df$co_quantaq_dpw, y = after_stat(count/sum(count))),
+                 fill = "skyblue", bins = 30, alpha=0.6) +
+    geom_histogram(aes(x = quantaq_df$co_quantaq_pha, y = after_stat(count/sum(count))),
+                 fill = "salmon", bins = 30, alpha=0.6) +
+    geom_histogram(aes(x = quantaq_df$co_quantaq_pema, y = after_stat(count/sum(count))),
+                 fill = "green4", bins = 30, alpha=0.6) +
+    xlab("CO (ppm)") +
+    ylab("Frequency") +
+    theme_bw()
+ggsave(filename="./plots/qaq_hist.png", plot=hist,  width=6, height=6, dpi=300, units="in")
+
+box = ggplot() +
+    geom_boxplot(aes(x = "QuantAQ @ DPW", y = quantaq_df$co_quantaq_dpw), fill = "skyblue", width = 0.6) +
+    geom_boxplot(aes(x = "QuantAQ @ PHA", y = quantaq_df$co_quantaq_pha), fill = "salmon", width = 0.6) +
+    geom_boxplot(aes(x = "QuantAQ @ PEMA", y = quantaq_df$co_quantaq_pema), fill = "green4", width = 0.6) +
+    xlab("Site") +
+    ylab("CO (ppm)") +
+    scale_y_continuous(
+        limits=c(0.5, 1.2),
+        breaks=waiver(),
+        minor_breaks=NULL
+    ) +
+    ggtitle("QuantAQ Site comparison") +
+    theme_bw()
+ggsave(filename="./plots/qaq_box.png", plot=box, width=6, height=6, dpi=300, units="in")
+
+
+
+png(
+    filename="./plots/qaq_ts.png",
+    width = 10 * 300, height = 10 * 300, res = 300
+)
+timePlot(
+    quantaq_df,
+    pollutant=c("co_quantaq_dpw","co_quantaq_pha","co_quantaq_pema"),
+    pol.names=c("DPW", "PHA", "PEMA"),
+    main = "QuantAQ Network Comparison",
+    smooth = TRUE,
+    ci = TRUE,
+    group = TRUE,
+    # stack=TRUE,
+    # ylim = c(-0.2, 1.4),
+    ylab = "CO (ppm)",
+    y.relation = "same",
+    lty = 1
+    # scales = list(
+    #   y = list(
+    #     at = seq(-0.2, 1.4, by = 0.2),
+    #     labels = seq(-0.2, 1.4, by = 0.2),
+    #     tck = c(1, 0)
+    #   )
+    # )
+)
+dev.off()
 
 # png(
-#     filename="./plots/ts_qaq_comp.png",
+#     filename="./plots/qaq_trend.png",
 #     width = 10 * 300, height = 10 * 300, res = 300
 # )
-# # summaryPlot(
-# #     quantaq_df,
-# #     na.len=6,
-# #     pollutant=c("co_quantaq_dpw","co_quantaq_pha","co_quantaq_pema"),
-# #     pol.names=c("DPW", "PHA", "PEMA"),
-# #     main = "QuantAQ Network Comparison",
-# #     period="months",
-# #     xlab=c("Time", "CO (ppm)"),
-# #     ylab=c("CO (ppm)", "Frequency (%)"),
-# #     col.trend="red"
-# # )
-# # timePlot(
-# #     quantaq_df,
-# #     pollutant=c("co_quantaq_dpw","co_quantaq_pha","co_quantaq_pema"),
-# #     pol.names=c("DPW", "PHA", "PEMA"),
-# #     main = "QuantAQ Network Comparison",
-# #     smooth = TRUE,
-# #     ci = TRUE,
-# #     group = TRUE,
-# #     # stack=TRUE,
-# #     # ylim = c(-0.2, 1.4),
-# #     ylab = "CO (ppm)",
-# #     y.relation = "same",
-# #     lty = 1
-# #     # scales = list(
-# #     #   y = list(
-# #     #     at = seq(-0.2, 1.4, by = 0.2),
-# #     #     labels = seq(-0.2, 1.4, by = 0.2),
-# #     #     tck = c(1, 0)
-# #     #   )
-# #     # )
-# # )
-# dev.off()
+# dpw_trend = smoothTrend(
+#     quantaq_df, 
+#     pollutant=c("co_quantaq_dpw","co_quantaq_pha","co_quantaq_pema"),
+#     plot=TRUE
+# )
