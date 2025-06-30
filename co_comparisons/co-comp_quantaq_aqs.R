@@ -8,7 +8,7 @@ library(lubridate)
 combined_df = read.csv("./combined_dataset.csv")
 combined_df$date = as.POSIXct(combined_df$date, tz="UTC")
 combined_df$date = with_tz(combined_df$date, tzone="America/New_York")
-write.csv(combined_df$date, "./dates.csv")
+# write.csv(combined_df$date, "./dates.csv")
 
 print_stats = function(qaq, ref, filename, qaq_site, ref_site, ref_type) {
     stopifnot(is.double(qaq), is.double(ref), length(qaq)==length(ref), is.character(filename))
@@ -84,7 +84,8 @@ co_time_series = function(df, qaq_pol, qaq_display_label, ref_pol, ref_display_l
         labels = seq(-0.2, 1.4, by = 0.2),
         tck = c(1, 0)
       )
-    )
+    ),
+    period="2 hour"
   )
   dev.off()
 }
@@ -104,10 +105,26 @@ co_time_variation = function(df, qaq_pol, qaq_display_label, ref_pol, ref_displa
             paste("QuantAQ", "–", if(ref_type=="aqs") "AQS" else "BEACO2N")
         ),
         ylab="CO (ppm)",
-        main=paste(qaq_display_label, "vs", ref_display_label)
+        main=paste(qaq_display_label, "vs", ref_display_label),
+        period="2 hour"
     )
     dev.off()
 }
+
+# drift_plot = function(df, bcn_pol, bcn_display_label, filename) {
+#     png(filename=filename, width = 10 * 300, height = 10 * 300, res = 300)
+#     timePlot(
+#         df, 
+#         pollutant=bcn_pol,
+#         cols="salmon",
+#         name.pol=bcn_display_label,
+#         smooth=TRUE, 
+#         ci=TRUE,
+        
+
+#     )
+#     dev.off()
+# }
 
 df_parser = function(df) {
   # Extract the variable name of the dataframe passed to the function
@@ -208,7 +225,6 @@ df_parser = function(df) {
 merged_vaqs_df = read.csv("./intermediary_datasets/merge_quantaq_aqs.csv")
 merged_vaqs_df$date = as.POSIXct(merged_vaqs_df$date, tz="UTC")
 
-# dec_vaqs_df_all = merged_vaqs_df %>% filter(if_all(everything(), ~ !is.na(.x))) # Filter for times when AQS and DPW have data # nolint
 vaqs_df_dpw = merged_vaqs_df %>% filter(!is.na(merged_vaqs_df$co_quantaq_dpw) & !is.na(merged_vaqs_df$co_aqs_cranston)) # Filter for times when AQS and DPW have data # nolint
 vaqs_df_pha = merged_vaqs_df %>% filter(!is.na(merged_vaqs_df$co_quantaq_pha) & !is.na(merged_vaqs_df$co_aqs_cranston)) # Filter for times when AQS and PHA have data # nolint
 vaqs_df_pema = merged_vaqs_df %>% filter(!is.na(merged_vaqs_df$co_quantaq_pema) & !is.na(merged_vaqs_df$co_aqs_cranston)) # Filter for times when AQS and PEMA have data # nolint
@@ -219,9 +235,9 @@ vaqs_df_pha$residual = vaqs_df_pha$co_quantaq_pha - vaqs_df_pha$co_aqs_cranston
 vaqs_df_pema$residual = vaqs_df_pema$co_quantaq_pema - vaqs_df_pema$co_aqs_cranston
 
 # Write dataframes to CSVs for manual inspection
-write.csv(vaqs_df_dpw, file="./co_comparisons/vaqs_df_dpw.csv", row.names=FALSE)
-write.csv(vaqs_df_pha, file="./co_comparisons/vaqs_df_pha.csv", row.names=FALSE)
-write.csv(vaqs_df_pema, file="./co_comparisons/vaqs_df_pema.csv", row.names=FALSE)
+# write.csv(vaqs_df_dpw, file="./co_comparisons/vaqs_df_dpw.csv", row.names=FALSE)
+# write.csv(vaqs_df_pha, file="./co_comparisons/vaqs_df_pha.csv", row.names=FALSE)
+# write.csv(vaqs_df_pema, file="./co_comparisons/vaqs_df_pema.csv", row.names=FALSE)
 
 
 # Compare the CO values of Cranston and QuantAQ sites (disregarding temp and rh)
@@ -290,9 +306,6 @@ co_time_variation(
     filename = "./plots/tv_aqs_pema.png"
 )
 
-
-stop("called stop")
-
 # co_time_series(vaqs_df_dpw, df_parser(vaqs_df_dpw))
 # co_time_series(vaqs_df_pha, df_parser(vaqs_df_pha))
 # co_time_series(vaqs_df_pema, df_parser(vaqs_df_pema))
@@ -315,149 +328,158 @@ vbcn_df_pema$residual = vbcn_df_pema$co_quantaq_pema - vbcn_df_pha$co_beaco2n_pe
 vbcn_df_dpw$residual = vbcn_df_dpw$co_quantaq_dpw - vbcn_df_pha$co_beaco2n_dpw
 
 # Write dataframes to CSVs for manual inspection
-write.csv(vbcn_df_dpw, file="./co_comparisons/vbcn_df_dpw.csv", row.names=FALSE)
-write.csv(vbcn_df_pha, file="./co_comparisons/vbcn_df_pha.csv", row.names=FALSE)
-write.csv(vbcn_df_pema, file="./co_comparisons/vbcn_df_pema.csv", row.names=FALSE)
+# write.csv(vbcn_df_dpw, file="./co_comparisons/vbcn_df_dpw.csv", row.names=FALSE)
+# write.csv(vbcn_df_pha, file="./co_comparisons/vbcn_df_pha.csv", row.names=FALSE)
+# write.csv(vbcn_df_pema, file="./co_comparisons/vbcn_df_pema.csv", row.names=FALSE)
 
 # Compare the CO values of colocated bcn/qaq sites (disregarding temp and rh)
-print_stats(ref=vbcn_df_dpw$co_beaco2n_dpw, qaq=vbcn_df_dpw$co_quantaq_dpw, filename="./co_comparisons/stats_vbcn_dpw.png")
-print_stats(ref=vbcn_df_pema$co_beaco2n_pema, qaq=vbcn_df_pema$co_quantaq_pema, filename="./co_comparisons/stats_vbcn_pema.png")
-print_stats(ref=vbcn_df_pha$co_beaco2n_pha, qaq=vbcn_df_pha$co_quantaq_pha, filename="./co_comparisons/stats_vbcn_pha.png")
+print_stats(ref=vbcn_df_dpw$co_beaco2n_dpw, qaq=vbcn_df_dpw$co_quantaq_dpw, filename="./plots/stats_vbcn_dpw.png", qaq_site="dpw", ref_site="dpw", ref_type="bcn")
+print_stats(ref=vbcn_df_pema$co_beaco2n_pema, qaq=vbcn_df_pema$co_quantaq_pema, filename="./plots/stats_vbcn_pema.png", qaq_site="pema", ref_site="pema", ref_type="bcn")
+print_stats(ref=vbcn_df_pha$co_beaco2n_pha, qaq=vbcn_df_pha$co_quantaq_pha, filename="./plots/stats_vbcn_pha.png", qaq_site="pha", ref_site="pha", ref_type="bcn")
 
-# TODO: DEBUG
-co_time_series(vbcn_df_dpw, df_parser(vbcn_df_dpw))
-co_time_series(vbcn_df_pha, df_parser(vbcn_df_pha))
-co_time_series(vbcn_df_pema, df_parser(vbcn_df_pema))
-
-co_time_variation(vbcn_df_dpw, df_parser(vbcn_df_dpw))
-co_time_variation(vbcn_df_pha, df_parser(vbcn_df_pha))
-co_time_variation(vbcn_df_pema, df_parser(vbcn_df_pema))
-
-
-
-stop("Called stop()")
-
-# Plot time series with residual for each QuantAQ/BEACO2N pairing (only for times when QAQ and BEACO2N are both active)
-png(
-    filename="./co_comparisons/ts_dpw_bcn.png",
-    width = 10*300, height=10*300, res=300
-)
-timePlot(
+co_time_series(
     vbcn_df_dpw, 
-    pollutant=c("co_beaco2n_dpw", "co_quantaq_dpw", "residual"),
-    name.pol=c("BEACO2N @ DPW", "QuantAQ @ DPW", "QuantAQ - BEACO2N"), 
-    main="QuantAQ DPW vs. BEACO2N DPW",
-    smooth=TRUE, 
-    ci=TRUE,
-    group=TRUE,
-    ylim = c(-0.2,1.4),
-    ylab="CO (ppm)",
-    y.relation = "same",
-    lty=1,
-    scales = list(
-        y = list(
-            at = seq(-0.2, 1.4, by = 0.2),    # tick positions every 0.2
-            labels = seq(-0.2, 1.4, by = 0.2),# matching labels
-            tck = c(1, 0)                     # draw ticks into the plotting area
-        )
-    ),
-    date.pad=TRUE
-) # nolint
-dev.off()
-
-png(
-    filename="./co_comparisons/ts_pha_bcn.png",
-    width = 10*300, height=10*300, res=300
+    qaq_pol="co_quantaq_dpw", 
+    ref_pol="co_beaco2n_dpw", 
+    qaq_display_label="QuantAQ @ DPW",
+    ref_display_label = "BEACO2N @ DPW",
+    ref_type = "bcn",
+    filename="./plots/ts_bcn_dpw.png"
 )
-timePlot(
+co_time_series(
     vbcn_df_pha, 
-    pollutant=c("co_beaco2n_pha", "co_quantaq_pha", "residual"),
-    name.pol=c("BEACO2N @ PHA", "QuantAQ @ PHA", "QuantAQ - BEACO2N"), 
-    main="QuantAQ PHA vs. BEACO2N PHA",
-    smooth=TRUE, 
-    ci=TRUE,
-    group=TRUE,
-    ylim = c(-0.2,1.4),
-    ylab="CO (ppm)",
-    y.relation = "same",
-    lty=1,
-    scales = list(
-        y = list(
-            at = seq(-0.2, 1.4, by = 0.2),    # tick positions every 0.2
-            labels = seq(-0.2, 1.4, by = 0.2),# matching labels
-            tck = c(1, 0)                     # draw ticks into the plotting area
-        )
-    ), 
-    date.pad=TRUE
-) # nolint
-dev.off()
-
-png(
-    filename="./co_comparisons/ts_pema_bcn.png",
-    width = 10*300, height=10*300, res=300
+    qaq_pol="co_quantaq_pha", 
+    ref_pol="co_beaco2n_pha", 
+    qaq_display_label="QuantAQ @ PHA",
+    ref_display_label = "BEACO2N @ PHA",
+    ref_type = "bcn",
+    filename="./plots/ts_bcn_pha.png" 
 )
-timePlot(
+co_time_series(
     vbcn_df_pema, 
-    pollutant=c("co_beaco2n_pema", "co_quantaq_pema", "residual"),
-    name.pol=c("BEACO2N @ PEMA", "QuantAQ @ PEMA", "QuantAQ - BEACO2N"), 
-    main="QuantAQ PEMA vs. BEACO2N PEMA",
-    smooth=TRUE, 
-    ci=TRUE,
-    group=TRUE,
-    ylim = c(-0.2,1.4),
-    ylab="CO (ppm)",
-    y.relation = "same",
-    lty=1,
-    scales = list(
-        y = list(
-            at = seq(-0.2, 1.4, by = 0.2),    # tick positions every 0.2
-            labels = seq(-0.2, 1.4, by = 0.2),# matching labels
-            tck = c(1, 0)                     # draw ticks into the plotting area
-        )
-    ), 
-    date.pad=TRUE
-) # nolint
-dev.off()
-
-# Plot time variations
-png(
-    filename="./co_comparisons/tv_dpw_bcn.png",
-    width = 10*300, height=10*300, res=300
+    qaq_pol="co_quantaq_pema", 
+    ref_pol="co_beaco2n_pema", 
+    qaq_display_label="QuantAQ @ PEMA",
+    ref_display_label = "BEACO2N @ PEMA",
+    ref_type = "bcn",
+    filename="./plots/ts_bcn_pema.png" 
 )
-timeVariation(
+co_time_variation(
     vbcn_df_dpw, 
-    pollutant=c("co_beaco2n_dpw", "co_quantaq_dpw", "residual"),
-    name.pol=c("BEACO2N @ DPW", "QuantAQ @ DPW", "QuantAQ - BEACO2N"),
-    ylab="CO (ppm)",
-    main="QuantAQ DPW vs. BEACO2N DPW"
+    qaq_pol="co_quantaq_dpw", 
+    ref_pol="co_beaco2n_dpw", 
+    qaq_display_label="QuantAQ @ DPW",
+    ref_display_label = "BEACO2N @ DPW",
+    ref_type = "bcn",
+    filename="./plots/ts_bcn_dpw.png" 
 )
-dev.off()
-
-png(
-    filename="./co_comparisons/tv_pema_bcn.png",
-    width = 10*300, height=10*300, res=300
-)
-timeVariation(
-    vbcn_df_pema, 
-    pollutant=c("co_beaco2n_pema", "co_quantaq_pema", "residual"),
-    name.pol=c("BEACO2N @ PEMA", "QuantAQ @ PEMA", "QuantAQ - BEACO2N"),
-    ylab="CO (ppm)",
-    main="QuantAQ PEMA vs. BEACO2N PEMA"
-)
-dev.off()
-
-png(
-    filename="./co_comparisons/tv_pha_bcn.png",
-    width = 10*300, height=10*300, res=300
-)
-timeVariation(
+co_time_variation(
     vbcn_df_pha, 
-    pollutant=c("co_beaco2n_pha", "co_quantaq_pha", "residual"),
-    name.pol=c("BEACO2N @ PHA", "QuantAQ @ PHA", "QuantAQ - BEACO2N"),
-    ylab="CO (ppm)",
-    main="QuantAQ PHA vs. BEACO2N PHA"
+    qaq_pol="co_quantaq_pha", 
+    ref_pol="co_beaco2n_pha", 
+    qaq_display_label="QuantAQ @ PHA",
+    ref_display_label = "BEACO2N @ PHA",
+    ref_type = "bcn",
+    filename="./plots/ts_bcn_pha.png" 
 )
-dev.off()
+co_time_variation(
+    vbcn_df_pema, 
+    qaq_pol="co_quantaq_pema", 
+    ref_pol="co_beaco2n_pema", 
+    qaq_display_label="QuantAQ @ PEMA",
+    ref_display_label = "BEACO2N @ PEMA",
+    ref_type = "bcn",
+    filename="./plots/ts_bcn_pema.png" 
+)
 
 
-# TODO: IN PROGRESS
+# # TODO: DEBUG
+# co_time_series(vbcn_df_dpw, df_parser(vbcn_df_dpw))
+# co_time_series(vbcn_df_pha, df_parser(vbcn_df_pha))
+# co_time_series(vbcn_df_pema, df_parser(vbcn_df_pema))
+
+# co_time_variation(vbcn_df_dpw, df_parser(vbcn_df_dpw))
+# co_time_variation(vbcn_df_pha, df_parser(vbcn_df_pha))
+# co_time_variation(vbcn_df_pema, df_parser(vbcn_df_pema))
+
+# BEACO2N DRIFT
+# New df with only beaco2n CO and aqs_cranston cols, dropping rows that do not have at least one non-NA column other than date.
+# bcn_aqs_df = combined_df %>% 
+#     select(matches("^(?:co_beaco2n_(?:dpw|pema|pha)|co_aqs_(?:cranston|myron)|date)$")) %>% 
+#     filter(if_any(-date, ~ !is.na(.)))
+# write.csv(bcn_aqs_df, "./test.csv")
+
+# # Plot BEACO2N PEMA vs both AQS sensors for as long as there is BEACO2N data.
+# png(
+#     filename="./plots/drift_bcn_pema.png",
+#     width = 10 * 300, height = 10 * 300, res = 300
+# )
+# timePlot(
+#     bcn_aqs_df,
+#     pollutant=c("co_beaco2n_pema","co_aqs_myron","co_aqs_cranston"),
+#     pol.names=c("BEACO2N at PEMA", "AQS at Myron", "AQS at Cranston"),
+#     main = paste("BEACO2N Drift"),
+#     smooth = TRUE,
+#     ci = TRUE,
+#     group = TRUE,
+#     stack=TRUE,
+#     ylim = c(-0.2, 1.4),
+#     ylab = "CO (ppm)",
+#     y.relation = "same",
+#     lty = 1
+#     # scales = list(
+#     #   y = list(
+#     #     at = seq(-0.2, 1.4, by = 0.2),
+#     #     labels = seq(-0.2, 1.4, by = 0.2),
+#     #     tck = c(1, 0)
+#     #   )
+#     # )
+# )
+# dev.off()
+
+# Comparing QuantAQ with each other:
+quantaq_df = combined_df %>% 
+    select(matches("^(?:co_quantaq_(?:dpw|pema|pha)|date)$")) %>%
+    filter(if_all(-date, ~ !is.na(.)))
+write.csv(quantaq_df, "./test2.csv")
+
+plt = ggplot() +
+    
+
+# png(
+#     filename="./plots/ts_qaq_comp.png",
+#     width = 10 * 300, height = 10 * 300, res = 300
+# )
+# # summaryPlot(
+# #     quantaq_df,
+# #     na.len=6,
+# #     pollutant=c("co_quantaq_dpw","co_quantaq_pha","co_quantaq_pema"),
+# #     pol.names=c("DPW", "PHA", "PEMA"),
+# #     main = "QuantAQ Network Comparison",
+# #     period="months",
+# #     xlab=c("Time", "CO (ppm)"),
+# #     ylab=c("CO (ppm)", "Frequency (%)"),
+# #     col.trend="red"
+# # )
+# # timePlot(
+# #     quantaq_df,
+# #     pollutant=c("co_quantaq_dpw","co_quantaq_pha","co_quantaq_pema"),
+# #     pol.names=c("DPW", "PHA", "PEMA"),
+# #     main = "QuantAQ Network Comparison",
+# #     smooth = TRUE,
+# #     ci = TRUE,
+# #     group = TRUE,
+# #     # stack=TRUE,
+# #     # ylim = c(-0.2, 1.4),
+# #     ylab = "CO (ppm)",
+# #     y.relation = "same",
+# #     lty = 1
+# #     # scales = list(
+# #     #   y = list(
+# #     #     at = seq(-0.2, 1.4, by = 0.2),
+# #     #     labels = seq(-0.2, 1.4, by = 0.2),
+# #     #     tck = c(1, 0)
+# #     #   )
+# #     # )
+# # )
+# dev.off()
