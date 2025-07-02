@@ -8,7 +8,8 @@
   "r.rterm.mac": "/Library/Frameworks/R.framework/Resources/bin/R",
   "r.alwaysUseActiveTerminal": true,
   "r.bracketedPaste": false,
-  "r.sessionWatcher": true
+  "r.sessionWatcher": true,
+  "r.lsp.diagnostics": false
 }
 
 

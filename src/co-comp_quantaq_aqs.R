@@ -1,18 +1,14 @@
-library(stringr)
-library(openair)
-library(dplyr)
-library(clock)
-library(ggplot2)
-library(lubridate)
-library(patchwork)
 library(tidyverse)
+library(openair)
+# library(stringr) # Used for df_parser function
 
-combined_df = read.csv("./combined_dataset.csv")
+unlink("./plots/*.png", expand=TRUE) # Hit Ctrl-Enter on this line to clear temporary files.
+
+combined_df = read.csv("./clean_data/all_co_temp_rh_2022.csv")
 combined_df$date = as.POSIXct(combined_df$date, tz="UTC")
-combined_df$date = with_tz(combined_df$date, tzone="America/New_York")
-# write.csv(combined_df$date, "./dates.csv")
+combined_df$date = with_tz(combined_df$date, tzone="America/New_York") # Allows OpenAir to account for EST/EDT
 
-print_stats = function(qaq, ref, filename, qaq_site, ref_site, ref_type) {
+co_stats = function(qaq, ref, filename, qaq_site, ref_site, ref_type) {
     stopifnot(is.double(qaq), is.double(ref), length(qaq)==length(ref), is.character(filename))
     stopifnot(is.character(qaq_site), is.character(ref_site), is.character(ref_type))
 
@@ -210,7 +206,7 @@ df_parser = function(df) {
 
 # COMPARE QUANTAQ TO AQS (BEACO2N BELOW)
 
-merged_vaqs_df = read.csv("./intermediary_datasets/merge_quantaq_aqs.csv")
+merged_vaqs_df = read.csv("./clean_data/aqs_qaq-notallna.csv")
 merged_vaqs_df$date = as.POSIXct(merged_vaqs_df$date, tz="UTC")
 
 vaqs_df_dpw = merged_vaqs_df %>% filter(!is.na(merged_vaqs_df$co_quantaq_dpw) & !is.na(merged_vaqs_df$co_aqs_cranston)) # Filter for times when AQS and DPW have data # nolint
@@ -229,9 +225,9 @@ vaqs_df_pema$residual = vaqs_df_pema$co_quantaq_pema - vaqs_df_pema$co_aqs_crans
 
 
 # Compare the CO values of Cranston and QuantAQ sites (disregarding temp and rh)
-print_stats(ref=vaqs_df_dpw$co_aqs_cranston, qaq=vaqs_df_dpw$co_quantaq_dpw, filename="./plots/stats_vaqs_dpw.png", qaq_site="DPW", ref_site="Cranston", ref_type="AQS")
-print_stats(ref=vaqs_df_pema$co_aqs_cranston, qaq=vaqs_df_pema$co_quantaq_pema, filename="./plots/stats_vaqs_pema.png", qaq_site="PEMA", ref_site="Cranston", ref_type="AQS")
-print_stats(ref=vaqs_df_pha$co_aqs_cranston, qaq=vaqs_df_pha$co_quantaq_pha, filename="./plots/stats_vaqs_pha.png", qaq_site="PHA", ref_site="Cranston", ref_type="AQS")
+co_stats(ref=vaqs_df_dpw$co_aqs_cranston, qaq=vaqs_df_dpw$co_quantaq_dpw, filename="./plots/stats_vaqs_dpw.png", qaq_site="DPW", ref_site="Cranston", ref_type="AQS")
+co_stats(ref=vaqs_df_pema$co_aqs_cranston, qaq=vaqs_df_pema$co_quantaq_pema, filename="./plots/stats_vaqs_pema.png", qaq_site="PEMA", ref_site="Cranston", ref_type="AQS")
+co_stats(ref=vaqs_df_pha$co_aqs_cranston, qaq=vaqs_df_pha$co_quantaq_pha, filename="./plots/stats_vaqs_pha.png", qaq_site="PHA", ref_site="Cranston", ref_type="AQS")
 
 plt = ggplot() +
     geom_boxplot(aes(x = "QuantAQ @ DPW", y = vaqs_df_dpw$co_quantaq_dpw), fill = "skyblue", width = 0.6) +
@@ -339,9 +335,9 @@ vbcn_df_dpw$residual = vbcn_df_dpw$co_quantaq_dpw - vbcn_df_pha$co_beaco2n_dpw
 # write.csv(vbcn_df_pema, file="./co_comparisons/vbcn_df_pema.csv", row.names=FALSE)
 
 # Compare the CO values of colocated bcn/qaq sites (disregarding temp and rh)
-print_stats(ref=vbcn_df_dpw$co_beaco2n_dpw, qaq=vbcn_df_dpw$co_quantaq_dpw, filename="./plots/stats_vbcn_dpw.png", qaq_site="dpw", ref_site="dpw", ref_type="bcn")
-print_stats(ref=vbcn_df_pema$co_beaco2n_pema, qaq=vbcn_df_pema$co_quantaq_pema, filename="./plots/stats_vbcn_pema.png", qaq_site="pema", ref_site="pema", ref_type="bcn")
-print_stats(ref=vbcn_df_pha$co_beaco2n_pha, qaq=vbcn_df_pha$co_quantaq_pha, filename="./plots/stats_vbcn_pha.png", qaq_site="pha", ref_site="pha", ref_type="bcn")
+co_stats(ref=vbcn_df_dpw$co_beaco2n_dpw, qaq=vbcn_df_dpw$co_quantaq_dpw, filename="./plots/stats_vbcn_dpw.png", qaq_site="dpw", ref_site="dpw", ref_type="bcn")
+co_stats(ref=vbcn_df_pema$co_beaco2n_pema, qaq=vbcn_df_pema$co_quantaq_pema, filename="./plots/stats_vbcn_pema.png", qaq_site="pema", ref_site="pema", ref_type="bcn")
+co_stats(ref=vbcn_df_pha$co_beaco2n_pha, qaq=vbcn_df_pha$co_quantaq_pha, filename="./plots/stats_vbcn_pha.png", qaq_site="pha", ref_site="pha", ref_type="bcn")
 
 co_time_series(
     vbcn_df_dpw, 
