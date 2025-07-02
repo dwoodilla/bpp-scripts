@@ -16,19 +16,6 @@ print_stats = function(qaq, ref, filename, qaq_site, ref_site, ref_type) {
     stopifnot(is.double(qaq), is.double(ref), length(qaq)==length(ref), is.character(filename))
     stopifnot(is.character(qaq_site), is.character(ref_site), is.character(ref_type))
 
-    # res = qaq - ref
-    # MAE = mean(abs(res))
-    # RMSE = sqrt(mean(res^2))
-    # rcor = cor(qaq, ref)
-    # Rsq = rcor^2 # NOTE: assuming this is a linear least-squares regression with a single independent variable
-    # ttest = t.test(qaq, ref)
-
-    # # Capture printed outputs as text lines
-    # qaq_txt     =  capture.output(summary(qaq))
-    # ref_txt     =  capture.output(summary(ref))
-    # res_txt     =  capture.output(summary(res))
-    # ttest_txt   =  capture.output(print(ttest))
-
   plt = ggplot() +
     geom_boxplot(aes(x = paste0("QuantAQ @ ", qaq_site), y = qaq), fill = "skyblue", width = 0.6) +
     geom_boxplot(aes(x = paste(ref_type, "@", ref_site), y = ref), fill = "salmon", width = 0.6) +
