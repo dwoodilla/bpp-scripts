@@ -1,7 +1,7 @@
 library(tidyverse)
 library(openair)
 library(checkmate) # type checking
-library(glue)
+# library(glue)
 # library(stringr) # Used for df_parser function
 
 unlink("./plots/*.png", expand=TRUE) # Hit Ctrl-Enter on this line to clear temporary files.
@@ -29,21 +29,58 @@ assert_df = function(df) {
 tidy_co_stats = function(df, title) {
     assert_df(df)
     df = df %>% filter(parameter=="co")
-    ggplot(
-        data=df,
-        mapping=aes(
-            x=interaction(sensor, location, sep=" @ "),
-            y=value,
-            fill=sensor
+    plt = 
+        ggplot(
+            data=df,
+            mapping=aes(
+                x=interaction(sensor, location, sep=" @ "),
+                y=value,
+                fill=sensor
+            )
+        ) + geom_boxplot() + 
+        labs(
+            title=title,
+            x = "Sensor type @ Location",
+            y = "CO (ppm)"
         )
-    ) +
-    geom_boxplot() + 
-    labs(
-        title=title,
-        x = "Sensor type @ Location",
-        y = "CO (ppm)"
-    )
-    ggsave(glue("./plots/co_stats_{title}.png"))
+    ggsave(plot=plt, glue::glue("./plots/co_stats_{title}.png"))
 }
 
-tidy_co_stats(tidy_combined_df, title="Test plot")
+tidy_co_histogram = function(df, title) {
+    assert_df(df)
+    x_partitions = seq(0,1.5,by=0.05)
+    y_partitions = seq(0,0.25,by=0.025)
+    plt = 
+        ggplot(
+            data=df,
+            mapping=aes(x=value, y=after_stat(count/sum(count)), fill=sensor)
+        ) + 
+        geom_histogram(
+            color="white",
+            binwidth=0.05,
+            boundary=0,
+            position="identity",
+            alpha=0.6
+        ) +
+        scale_x_continuous(
+            breaks = x_partitions,
+            labels = x_partitions
+        ) + 
+        scale_y_continuous(
+            breaks = y_partitions,
+            labels = y_partitions
+        ) +
+        theme_bw() + theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
+        labs(
+            title=title,
+            x="CO (ppm)",
+            y="Relative Frequency"
+        )
+
+    ggsave(plot=plt, filename=glue::glue("./plots/co_hist_{title}.png"))
+}
+
+tidy_co_histogram(filter(tidy_combined_df, parameter=="co", location=="dpw"), title="dpw")
+tidy_co_histogram(filter(tidy_combined_df, parameter=="co", location=="pha"), title="pha")
+tidy_co_histogram(filter(tidy_combined_df, parameter=="co", location %in% c("dpw", "cranston")), title="vaqs")
+
