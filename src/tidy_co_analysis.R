@@ -10,20 +10,27 @@ combined_df$date = as.POSIXct(combined_df$date, tz="UTC")
 combined_df$date = with_tz(combined_df$date, tzone="America/New_York") # Allows OpenAir to account for EST/EDT
 valid_cols = colnames(combined_df)
 
-tidy_co_stats = function(df) {
+assert_df = function(df, ...) {
     # Assert df is a non-empty DataFrame with double and POSIXct columns with names from combined_df
-    assert_data_frame(df, types=c("double", "POSIXct"), all.missing=FALSE, min.cols=2, col.names=checkSubset(colnames(df), valid_cols))
-    assert_names(df, must.include="date", subset.of=valid_cols)
+    # NOTE: These checks do not perfectly filter out invalid dataframes, but do assert expectations that the rest of the script relies on.
+    assert_data_frame(df, types=c("double", "POSIXct"), all.missing=FALSE, min.cols=2)
+    assert_subset(colnames(df), valid_cols, empty.ok=FALSE)
     assert_posixct(df$date, any.missing=FALSE)
-    assert_posixct(df[colnames(df)!="date"], negate=TRUE)
-    
-    # colnames = colnames(df)
-    # ggplot(
-    #     data=df,
-    #     mapping=aes(
-
-    #     )
-    # )
+    for (col in ...) {
+        assert_subset(col, colnames(df))
+    }
 }
 
-tidy_co_stats(data.frame(date = c(as.POSIXct(Sys.Date()), as.POSIXct(Sys.Date())), co_aqs_myron=c(0, as.POSIXct(Sys.Date()))))
+tidy_co_stats = function(df, ...) {
+    args = list(...)
+    assert_df(df, args$x, args$y)
+    ggplot(
+        data=df,
+        mapping=aes(
+            x=args$x,
+            y=args,
+            color=if("color" in names(args)) args$color else NULL
+        )
+    ) +
+    geom_boxplot(title=)
+}
