@@ -53,57 +53,6 @@ tidy_co_stats = function(df, filename, ...) {
     ggsave(plot=plt, filename=filename)
 }
 
-tidy_co_histogram_facet_helper = function(df, ...) {
-    x_partitions = seq(0,1.5,by=0.05)
-    y_max = 0.25
-    y_partitions=seq(0,y_max,by=0.025)
-
-    plt = 
-        ggplot(
-            data=df,
-            mapping=aes(x=value,y=after_stat(count/sum(count)))
-        ) +
-        geom_histogram(
-            color="white",
-            binwidth=0.05,
-            boundary=0,
-            position="identity",
-            alpha=0.6
-        ) +
-        scale_x_continuous(
-            breaks = x_partitions,
-            labels = x_partitions
-        ) + 
-        scale_y_continuous(
-            breaks = y_partitions,
-            labels = y_partitions
-        ) +
-        coord_cartesian(ylim=c(0,y_max)) +
-        theme_bw() + theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
-        labs(
-            ...,
-            x="CO (ppm)",
-            y="Relative Frequency"
-        )
-    return(plt)
-}
-# TODO: debug histogram faceter
-tidy_co_histogram_facet = function(df, filepath, facet_on = sensor, title, ...) {
-    assert_string(as_label(enquo(facet_on)))
-    assert_tidy(df)
-
-    facet_values = unique(df %>% pull({{facet_on}}))
-    print(facet_values)
-    plot_list = lapply(facet_values, function(val) {
-        subframe = df %>% filter({{facet_on}}==val) 
-        tidy_co_histogram_facet_helper(subframe)
-    })
-    
-    plot = wrap_plots(plot_list) + labs(title=title)
-    ggsave(plot=plot, filename=filepath)
-}
-
-
 tidy_co_histogram = function(df, filename, filltype = NULL, ...) {
     assert_string(filltype, null.ok=TRUE)
     assert_tidy(df)
