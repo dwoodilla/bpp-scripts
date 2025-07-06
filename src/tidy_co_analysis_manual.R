@@ -17,8 +17,9 @@ tidy_combined_df = combined_df %>% pivot_longer( # Convert combined_df to tidy f
     values_to = "value",
     names_pattern = "([^_]+)_([^_]+)_(.+)"
 )
+
 # rownames(combined_df) = combined_df$date
-tidy_combined_df$date = with_tz(tidy_combined_df$date, tzone="America/New_York") # Allows OpenAir to account for EST/EDT
+# tidy_combined_df$date = with_tz(tidy_combined_df$date, tzone="America/New_York") # Allows OpenAir to account for EST/EDT
 valid_cols = colnames(tidy_combined_df)
 
 assert_tidy = function(df) {
@@ -161,11 +162,13 @@ myron_df_wide = tidy_combined_df %>%
     filter(if_all(c(aqs, beaco2n), ~ !is.na(.))) # Choose rows s.t. no measurement entry is NA
 
 myron_rolling_wide = myron_df_wide %>%
-    mutate(aqs = rollmean(aqs, k=24*31*3, align="center", fill=NA), 
-           beaco2n = rollmean(beaco2n, k=24*31*3, align="center", fill=NA))
+    mutate(aqs = rollmean(aqs, k=24*31, align="center", fill=NA), 
+           beaco2n = rollmean(beaco2n, k=24*31, align="center", fill=NA)) %>%
+    mutate(res = beaco2n - aqs)
 myron_savgol_wide = myron_df_wide %>%
-    mutate(aqs = savgol(aqs, fl=(24*31*3)-1),
-           beaco2n = savgol(beaco2n, fl=(24*31*3)-1))
+    mutate(aqs = savgol(aqs, fl=23),
+           beaco2n = savgol(beaco2n, fl=23)) %>%
+    mutate(res = beaco2n - aqs)
 
 myron_df_long = myron_df_wide %>% 
     pivot_longer(
@@ -179,37 +182,12 @@ myron_rolling_long = myron_rolling_wide %>%
         names_to = "sensor",
         values_to = "value"
     )
-print(head(myron_rolling_long))
 myron_savgol_long = myron_savgol_wide %>%
     pivot_longer(
         cols=-date,
         names_to = "sensor",
         values_to = "value"
     )
-
-# myron_zoo_beaco2n = zoo(myron_df_wide[["co_beaco2n"]], myron_df_wide[["date"]])
-# myron_zoo_aqs = zoo(myron_df_wide[["co_aqs"]], myron_df_wide[["date"]])
-# myron_zoo = merge(myron_zoo_beaco2n, myron_zoo_aqs)
-# myron_wide = fortify(myron_zoo)
-# myron_rolling_wide = fortify(rollmean(myron_zoo, k=(24*31), align="center")) # 24 hrs/day * 31 days/mo
-# colnames(myron_wide) = c("date","beaco2n","aqs")
-# colnames(myron_rolling_wide) = c("date","beaco2n","aqs")
-#
-# myron_wide[["beaco2n"]] = savgol(myron_wide[["beaco2n"]], fl=101)
-# myron_wide[["aqs"]] = savgol(myron_wide[["aqs"]], fl=101)
-#
-# myron_rolling_wide[["bcn-aqs"]] = myron_rolling_wide[["beaco2n"]] - myron_rolling_wide[["aqs"]]
-#
-# myron_savgol_long = myron_wide %>% pivot_longer(
-#     cols=-date,
-#     names_to="sensor",
-#     values_to="value"
-# )
-# myron_rolling_long = myron_rolling_wide %>% pivot_longer(
-#     cols = -date,
-#     names_to = "sensor",
-#     values_to = "value"
-# )
 
 season = function(vec) {
     m = month(as.Date(vec))
@@ -223,84 +201,128 @@ season = function(vec) {
     )
 }
 count_from_season_start = function(vec) {
-    d = as.Date(vec)
+    d = as.POSIXct(vec)
     sn = season(vec)
-    tz(d) = "UTC"
     sn_start = 
         case_when(
-            sn=="Winter" ~ make_date(year=if_else(month(d)==12, year(d), year(d)-1), month=12, day=1),
-            sn=="Spring" ~ make_date(year=year(d), month=3, day=1),
-            sn=="Summer" ~ make_date(year=year(d), month=6, day=1),
-            sn=="Fall" ~ make_date(year=year(d), month=9, day=1)
+            sn=="Winter" ~ make_datetime(year=if_else(month(d)==12, year(d), year(d)-1), month=12, day=1),
+            sn=="Spring" ~ make_datetime(year=year(d), month=3, day=1),
+            sn=="Summer" ~ make_datetime(year=year(d), month=6, day=1),
+            sn=="Fall" ~ make_datetime(year=year(d), month=9, day=1)
         )
-    tz(sn_start) = "UTC"
-    return(d-sn_start)
+    return(int_length(interval(start=sn_start, end=d, tz="UTC")))
 }
 
 # Summer: JJA, Winter: DJF
-myron_rolling_long_seasonated = myron_rolling_long %>%
-    mutate(year=if_else(month(date)==12, year(date)+1, year(date)), season=season(date), from_sn_start=count_from_season_start(date)) 
-write.csv(x=myron_rolling_long_seasonated, file="./seasonated.csv")
-summers_plt = 
+myron_rolling_long_seasonal = myron_rolling_long %>%
+    mutate(
+        year=if_else(month(date)==12, 
+        year(date)+1, year(date)), 
+        season=season(date), 
+        season=factor(season, levels = c("Winter", "Spring", "Summer", "Fall")),
+        from_sn_start=count_from_season_start(date)
+    ) 
+myron_yr_by_sn = 
     ggplot(
-        data=myron_rolling_long_seasonated %>% filter(season=="Winter"), 
+        data=myron_rolling_long_seasonal, 
         mapping=aes(
             x=from_sn_start, 
             y=value, 
             color=sensor
         )
-    ) + facet_wrap(~ year) +
-    geom_line()
-ggsave(plot=summers_plt, filename="./tidy_plots/myron_rolling_summers.png")
-stop()
-winters_plt = 
-    ggplot(data=myron_rolling_long_winters, mapping=aes(x=date, y=value, color=sensor)) + 
-    geom_line() +
-    geom_hline(yintercept=0, color="red")
-ggsave(plot=winters_plt, filename="./tidy_plots/myron_rolling_winters.png")
+    ) + 
+    facet_grid(rows=vars(year), cols=vars(season)) +
+    geom_line() + theme_bw() +
+    theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
+    geom_hline(yintercept = 0, color="red") +
+    labs(
+        title="Myron: AQS vs BEACO2N",
+        subtitle="2022-2024 Partitioned by Season",
+        x = "Seconds from first day of season",
+        y = "CO (ppm)"
+    )
+ggsave(plot=myron_yr_by_sn, filename="./tidy_plots/myron_yr_by_sn_ts.png")
 
-ggplot(data=myron_savgol_long, mapping=aes(x=date, y=value, color=sensor)) + geom_line() + 
-    geom_hline(yintercept=0, color="red") 
-ggsave(filename="./tidy_plots/myron_sevgol_timeseries.png", height=7.5, width=7.5, units="in")
-ggplot(data=myron_rolling_long, mapping=aes(x=date, y=value, color=sensor)) + geom_line() + 
-    geom_hline(yintercept=0, color="red") +
-    scale_y_break(c(0.035,0.15))
-ggsave(filename="./tidy_plots/myron_rolling_timeseries.png", height=7.5, width=7.5, units="in")
+myron_sn = 
+    ggplot(
+        data=myron_rolling_long_seasonal, 
+        mapping=aes(
+            x=from_sn_start,
+            y=value,
+            color=sensor,
+            linetype=factor(year)
+        )
+    ) + 
+    facet_wrap(~ season) +
+    geom_line() + theme_bw() +
+    theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
+    geom_hline(yintercept = 0, color="red") +
+    labs(
+        title="Myron: AQS vs BEACO2N",
+        subtitle="2022-2024 Partitioned by Season",
+        x = "Seconds from first day of season",
+        y = "CO (ppm)",
+        color="Sensor",
+        linetype="Year"
+    )
+ggsave(plot=myron_sn, filename="./tidy_plots/myron_sn_ts.png")
 
-png(
-    filename="./plots/myron_timeseries.png",
-    width = 300*10, height = 300*10, res=300
-)
-timePlot(
-    mydata=myron_df_wide, 
-    pollutant = c("co_aqs", "co_beaco2n"),
-    cols = c("salmon","green4"),
-    stack=TRUE,
-    smooth=TRUE,
-    ci=TRUE
-)
-dev.off()
+myron_yr_by_sn_box = 
+    ggplot(
+        data=myron_rolling_long_seasonal %>% filter(sensor %in% c("aqs","beaco2n")), # Residual scaled poorly on plot
+        mapping=aes(
+            x=sensor, 
+            y=value,
+            color=sensor
+        )
+    ) + 
+    facet_grid(rows=vars(year), cols=vars(season), scales="fixed") +
+    geom_boxplot() + theme_bw() +
+    theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
+    labs(
+        title="Myron: AQS vs BEACO2N",
+        subtitle="2022-2024 Partitioned by Season",
+        x = "Sensor",
+        y = "CO (ppm)"
+    )
+ ggsave(plot=myron_yr_by_sn_box, filename="./tidy_plots/myron_yr_by_sn_box.png")
 
-# tidy_co_stats(
-#     filter(tidy_combined_df, parameter=="co", location %in% c("dpw", "pema", "pha", "cranston")), 
-#     title="AQS Cranston vs QuantAQ: Summary Statistics", 
-#     filename="./tidy_plots/co_stat_summary.png"
-# )
-# for(site in c("dpw", "pema", "pha")) {
-#     tidy_co_histogram(
-#         filter(tidy_combined_df, parameter=="co", location %in% c("cranston", site)), 
-#         title=glue("Relative Frequency Histogram: {toupper(site)}"),
-#         filename=glue("./tidy_plots/co_hist_{site}.png")
-#     )
-# }
-# tidy_co_histogram(
-#     filter(tidy_combined_df, parameter=="co", sensor=="quantaq"),
-#     filename="./tidy_plots/co_hist_quantaq.png", 
-#     filltype="location",
-#     title="QuantAQ Relative Frequency Histogram"
-# )
-# tidy_co_histogram(
-#     filter(tidy_combined_df, parameter=="co", sensor=="aqs", location=="cranston"),
-#     filename="./tidy_plots/co_hist_aqs.png",
-#     title="AQS RF Hist"
-# )
+myron_yr_box_nores = 
+    ggplot(
+        data=myron_rolling_long_seasonal %>% filter(sensor %in% c("aqs","beaco2n")), # Residual scaled poorly on plot
+        mapping=aes(
+            x=sensor, 
+            y=value,
+            color=sensor
+        )
+    ) + 
+    facet_wrap(~ year) +
+    geom_boxplot() + theme_bw() +
+    theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
+    labs(
+        title="Myron: AQS vs BEACO2N",
+        subtitle="2022-2024 Partitioned by Year",
+        x = "Sensor",
+        y = "CO (ppm)",
+        color="Sensor"
+    )
+ ggsave(plot=myron_yr_by_sn_box_nores, filename="./tidy_plots/myron_yr_box_nores.png")
+
+ myron_yr_box_onlyres = 
+    ggplot(
+        data=myron_rolling_long_seasonal %>% filter(sensor=="res"),
+        mapping=aes(
+            x=sensor, 
+            y=value
+        )
+    ) + 
+    facet_wrap(~ year) +
+    geom_boxplot() + theme_bw() +
+    # theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
+    labs(
+        title="Myron: AQS vs BEACO2N",
+        subtitle="2022-2024 Partitioned by Year",
+        x = "Sensor",
+        y = "CO (ppm)"
+    )
+ ggsave(plot=myron_yr_box_onlyres, filename="./tidy_plots/myron_yr_box_onlyres.png")
