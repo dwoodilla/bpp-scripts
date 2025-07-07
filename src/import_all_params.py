@@ -20,8 +20,7 @@ def clean_bcn(df : pd.DataFrame)-> pd.DataFrame:
     df.rename({"co_corrected":"co"})
     wrk_aux_cols = df.filter(regex=r"_wrk_aux$").columns
     df.rename(columns={col : col.replace("_wrk_aux", "_raw") for col in wrk_aux_cols}, inplace=True)
-    # df.set_index("date")
-    df.dropna(how="all", inplace=True)
+    df.dropna(how="all", subset=df.columns, inplace=True)
 
     df = df.melt(
         id_vars=["date"],
@@ -29,8 +28,13 @@ def clean_bcn(df : pd.DataFrame)-> pd.DataFrame:
         value_name="value"
     )
     df = df.assign(corrected=lambda df_arg : ~df_arg["parameter"].str.endswith("_raw")) # '~' is bitwise NOT
+    df["parameter"] = df["parameter"].str.removesuffix("_raw").str.removesuffix("_corrected")
     return df
 
-bcn_df = {site : clean_bcn(df) for site, df in bcn_df.items()}
+def clean_qaq(df :pd.DataFrame)-> pd.DataFrame :
+    df.rename(columns={"period_start_utc":"date"}, inplace=True)
+    df["date"] = pd.to_datetime(df["date"], utc=True)
+    df.drop(columns=["period_start","period_end","period_end_utc","sn","n_datepoints"])
+    
 
-print(bcn_df["dpw"].head())
+bcn_df = {site : clean_bcn(df) for site, df in bcn_df.items()}
