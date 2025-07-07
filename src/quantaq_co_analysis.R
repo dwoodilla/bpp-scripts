@@ -6,14 +6,17 @@ library(patchwork)
 
 unlink("./plots/*.png", expand=TRUE) # Hit Ctrl-Enter on this line to clear temporary files.
 
-combined_df = read.csv("./clean_data/all_co_temp_rh_2022.csv")
-combined_df$date = as.POSIXct(combined_df$date, tz="UTC")
-tidy_combined_df = combined_df %>% pivot_longer( # Convert combined_df to tidy format
-    cols = -date,
-    names_to = c("parameter","sensor","location"),
-    values_to = "value",
-    names_pattern = "([^_]+)_([^_]+)_(.+)"
-)
+# combined_df = read.csv("./clean_data/all_co_temp_rh_2022.csv")
+# combined_df$date = as.POSIXct(combined_df$date, tz="UTC")
+# tidy_combined_df = combined_df %>% pivot_longer( # Convert combined_df to tidy format
+#     cols = -date,
+#     names_to = c("parameter","sensor","location"),
+#     values_to = "value",
+#     names_pattern = "([^_]+)_([^_]+)_(.+)"
+# )
+
+tidy_combined_df = import_cleaned()
+
 tidy_combined_df$date = with_tz(tidy_combined_df$date, tzone="America/New_York") # Allows OpenAir to account for EST/EDT
 valid_cols = colnames(tidy_combined_df)
 
