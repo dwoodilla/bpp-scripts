@@ -1,9 +1,8 @@
 library(tidyverse)
 library(openair)
-library(checkmate) # type checking
+library(checkmate) 
 library(glue)
 library(patchwork)
-# library(stringr) # Used for df_parser function
 
 unlink("./plots/*.png", expand=TRUE) # Hit Ctrl-Enter on this line to clear temporary files.
 
@@ -15,7 +14,6 @@ tidy_combined_df = combined_df %>% pivot_longer( # Convert combined_df to tidy f
     values_to = "value",
     names_pattern = "([^_]+)_([^_]+)_(.+)"
 )
-# rownames(combined_df) = combined_df$date
 tidy_combined_df$date = with_tz(tidy_combined_df$date, tzone="America/New_York") # Allows OpenAir to account for EST/EDT
 valid_cols = colnames(tidy_combined_df)
 
@@ -27,7 +25,7 @@ assert_tidy = function(df) {
     assert_posixct(df$date, any.missing=FALSE)
 }
 
-tidy_co_stats = function(df, filename, ...) {
+co_boxplot = function(df, ...) {
     assert_tidy(df)
     df = df %>% filter(parameter=="co")
     y_partitions = seq(0,1.25,by=0.25)
@@ -39,7 +37,8 @@ tidy_co_stats = function(df, filename, ...) {
                 y=value,
                 fill=sensor
             )
-        ) + geom_boxplot() + 
+        ) + 
+        geom_boxplot() + 
         theme_bw() + theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
         scale_y_continuous(
             breaks = y_partitions,
@@ -50,32 +49,20 @@ tidy_co_stats = function(df, filename, ...) {
             x = "Sensor type @ Location",
             y = "CO (ppm)"
         )
-    ggsave(plot=plt, filename=filename)
+    return(plt)
 }
 
-tidy_co_histogram = function(df, filename, filltype = NULL, ...) {
-    assert_string(filltype, null.ok=TRUE)
+co_histogram = function(df, ...) {
     assert_tidy(df)
     x_partitions = seq(0,1.5,by=0.05)
-    y_max=0.175
-    y_partitions = seq(0,y_max,by=0.025)
+    yrange = c(0, 0.375)
+    xrange = c(0.1, 1.35)
+    y_partitions = seq(0,yrange[2],by=0.025)
     plt = 
         ggplot(
             data=df,
-            mapping={
-                if (is.null(filltype)) {
-                    aes(x=value, y=after_stat(count/sum(count)), fill=sensor)
-                } else {
-                    aes(x=value, y=after_stat(count/sum(count)), fill=.data[[filltype]])
-                }
-            }
-        ) + {
-            if (is.null(filltype)) {
-                facet_wrap(~sensor)
-            } else {
-                facet_wrap(vars(!!sym(filltype)))
-            }
-        } +
+            mapping=aes(x=value, y=after_stat(count/sum(count)))
+        ) +
         geom_histogram(
             color="white",
             binwidth=0.05,
@@ -91,19 +78,17 @@ tidy_co_histogram = function(df, filename, filltype = NULL, ...) {
             breaks = y_partitions,
             labels = y_partitions
         ) +
-        coord_cartesian(ylim=c(0,y_max)) +
-        # geom_density(alpha=0.5) +
-        theme_bw() + theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
+        coord_cartesian(ylim=yrange, xlim=xrange) +
+        theme_bw() + theme(axis.text.x = element_text(angle=90, hjust=1, vjust=1)) +
         labs(
             ...,
             x="CO (ppm)",
             y="Relative Frequency"
         )
 
-    ggsave(plot=plt, filename=filename)
+    return(plt)
 }
-tidy_co_distribution = function(df, filepath, filltype = NULL, ...) {
-    assert_string(filltype, null.ok=TRUE)
+co_distribution = function(df, ...) {
     assert_tidy(df)
     x_partitions = seq(0,1.5,by=0.05)
     y_partitions = seq(0,0.25,by=0.025)
@@ -111,9 +96,7 @@ tidy_co_distribution = function(df, filepath, filltype = NULL, ...) {
         ggplot(
             data=df,
             mapping=aes(x=value, y=after_stat(count/sum(count)))
-        ) + {
-            if (is.null(filltype)) {aes(fill=sensor)} else {aes(fill=.data[[filltype]])}
-        } +
+        ) +
         geom_density(
             color="white",
             binwidth=0.05,
@@ -129,24 +112,79 @@ tidy_co_distribution = function(df, filepath, filltype = NULL, ...) {
             breaks = y_partitions,
             labels = y_partitions
         ) +
-        # geom_density(alpha=0.5) +
-        theme_bw() + theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
+        theme_bw() + theme(axis.text.x = element_text(angle=90, hjust=1, vjust=1)) +
         labs(
             ...,
             x="CO (ppm)",
             y="Relative Frequency"
         )
 
-    ggsave(plot=plt, filename=filename)
+    return(plt)
 }
 
-tidy_co_histogram_facet(tidy_combined_df, facet_on=sensor, filepath="./test.png", title="Title")
-
-# tidy_co_stats(
+ggsave(
+    plot=co_boxplot(
+        filter(tidy_combined_df, parameter=="co", location %in% c("dpw", "pema", "pha", "cranston")), 
+        title="AQS Cranston vs QuantAQ: Summary Statistics",
+    ),
+    filename="./tidy_plots/quantaq/co_boxplot.png"
+)
+# co_boxplot(
 #     filter(tidy_combined_df, parameter=="co", location %in% c("dpw", "pema", "pha", "cranston")), 
 #     title="AQS Cranston vs QuantAQ: Summary Statistics", 
 #     filename="./tidy_plots/co_stat_summary.png"
 # )
+
+co_stat_df = tidy_combined_df %>% 
+    filter(parameter=="co", sensor %in% c("aqs","quantaq"), location %in% c("cranston","dpw","pha","pema")) %>%
+    group_by(location) %>%
+    summarise(mean = mean(value, na.rm=TRUE), sd = sd(value, na.rm=TRUE))
+
+
+aqs_hist = co_histogram(
+    filter(tidy_combined_df, parameter=="co", location=="cranston"), 
+    title="AQS Cranston",
+    subtitle=paste0(
+        "mean=",
+        round(digits=3, co_stat_df %>% filter(location=="cranston") %>% select(mean) %>% pull),
+        " sd=",
+        round(digits=3, co_stat_df %>% filter(location=="cranston") %>% select(sd) %>% pull)
+    )
+)
+
+dpw_hist = co_histogram(
+    filter(tidy_combined_df, parameter=="co", location=="dpw", sensor=="quantaq"), 
+    title="QuantAQ DPW",
+    subtitle=paste0(
+        "mean=",
+        round(digits=3, co_stat_df %>% filter(location=="dpw") %>% select(mean) %>% pull),
+        " sd=",
+        round(digits=3, co_stat_df %>% filter(location=="dpw") %>% select(sd) %>% pull)
+    )
+)
+pha_hist = co_histogram(
+    filter(tidy_combined_df, parameter=="co", location=="pha", sensor=="quantaq"), 
+    title="QuantAQ PHA",
+    subtitle=paste0(
+        "mean=",
+        round(digits=3, co_stat_df %>% filter(location=="pha") %>% select(mean) %>% pull),
+        " sd=",
+        round(digits=3, co_stat_df %>% filter(location=="pha") %>% select(sd) %>% pull) 
+    )
+)
+pema_hist = co_histogram(
+    filter(tidy_combined_df, parameter=="co", location=="pema", sensor=="quantaq"), 
+    title="QuantAQ PEMA",
+    subtitle=paste0(
+        "mean=",
+        round(digits=3, co_stat_df %>% filter(location=="pema") %>% select(mean) %>% pull),
+        " sd=",
+        round(digits=3, co_stat_df %>% filter(location=="pema") %>% select(sd) %>% pull)
+    )
+)
+patch = aqs_hist + dpw_hist + pha_hist + pema_hist
+ggsave(plot=patch, filename="./tidy_plots/quantaq/patched_histograms.png")
+
 # for(site in c("dpw", "pema", "pha")) {
 #     tidy_co_histogram(
 #         filter(tidy_combined_df, parameter=="co", location %in% c("cranston", site)), 
@@ -154,13 +192,13 @@ tidy_co_histogram_facet(tidy_combined_df, facet_on=sensor, filepath="./test.png"
 #         filename=glue("./tidy_plots/co_hist_{site}.png")
 #     )
 # }
-# tidy_co_histogram(
+# co_histogram(
 #     filter(tidy_combined_df, parameter=="co", sensor=="quantaq"),
 #     filename="./tidy_plots/co_hist_quantaq.png", 
 #     filltype="location",
 #     title="QuantAQ Relative Frequency Histogram"
 # )
-# tidy_co_histogram(
+# co_histogram(
 #     filter(tidy_combined_df, parameter=="co", sensor=="aqs", location=="cranston"),
 #     filename="./tidy_plots/co_hist_aqs.png",
 #     title="AQS RF Hist"
