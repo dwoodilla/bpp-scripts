@@ -54,9 +54,9 @@ co_boxplot = function(df, ...) {
 
 co_histogram = function(df, ...) {
     assert_tidy(df)
-    x_partitions = seq(0,1.5,by=0.05)
-    yrange = c(0, 0.375)
-    xrange = c(0.1, 1.35)
+    x_partitions = seq(0,1.5,by=0.1)
+    yrange = c(0, 0.4)
+    xrange = c(0, 1.35)
     y_partitions = seq(0,yrange[2],by=0.025)
     plt = 
         ggplot(
@@ -64,7 +64,7 @@ co_histogram = function(df, ...) {
             mapping=aes(x=value, y=after_stat(count/sum(count)))
         ) +
         geom_histogram(
-            color="white",
+            color="black",
             binwidth=0.05,
             boundary=0,
             position="identity",
@@ -79,7 +79,7 @@ co_histogram = function(df, ...) {
             labels = y_partitions
         ) +
         coord_cartesian(ylim=yrange, xlim=xrange) +
-        theme_bw() + theme(axis.text.x = element_text(angle=90, hjust=1, vjust=1)) +
+        theme_bw() + theme(axis.text.x = element_text(angle=60, hjust=1, vjust=1)) +
         labs(
             ...,
             x="CO (ppm)",
@@ -127,79 +127,95 @@ ggsave(
         filter(tidy_combined_df, parameter=="co", location %in% c("dpw", "pema", "pha", "cranston")), 
         title="AQS Cranston vs QuantAQ: Summary Statistics",
     ),
-    filename="./tidy_plots/quantaq/co_boxplot.png"
+    filename="./plots/quantaq_co_analysis/co_boxplot.png"
 )
 # co_boxplot(
 #     filter(tidy_combined_df, parameter=="co", location %in% c("dpw", "pema", "pha", "cranston")), 
 #     title="AQS Cranston vs QuantAQ: Summary Statistics", 
-#     filename="./tidy_plots/co_stat_summary.png"
+#     filename="./plots/co_stat_summary.png"
 # )
 
 co_stat_df = tidy_combined_df %>% 
-    filter(parameter=="co", sensor %in% c("aqs","quantaq"), location %in% c("cranston","dpw","pha","pema")) %>%
-    group_by(location) %>%
+    filter(parameter=="co", location %in% c("cranston","dpw","pha","pema")) %>%
+    group_by(location, sensor) %>%
     summarise(mean = mean(value, na.rm=TRUE), sd = sd(value, na.rm=TRUE))
-
 
 aqs_hist = co_histogram(
     filter(tidy_combined_df, parameter=="co", location=="cranston"), 
     title="AQS Cranston",
     subtitle=paste0(
         "mean=",
-        round(digits=3, co_stat_df %>% filter(location=="cranston") %>% select(mean) %>% pull),
+        round(digits=3, co_stat_df %>% filter(location=="cranston", sensor=="aqs") %>% select(mean) %>% pull),
         " sd=",
-        round(digits=3, co_stat_df %>% filter(location=="cranston") %>% select(sd) %>% pull)
+        round(digits=3, co_stat_df %>% filter(location=="cranston", sensor=="aqs") %>% select(sd) %>% pull)
     )
 )
 
-dpw_hist = co_histogram(
+qaq_dpw_hist = co_histogram(
     filter(tidy_combined_df, parameter=="co", location=="dpw", sensor=="quantaq"), 
     title="QuantAQ DPW",
     subtitle=paste0(
         "mean=",
-        round(digits=3, co_stat_df %>% filter(location=="dpw") %>% select(mean) %>% pull),
+        round(digits=3, co_stat_df %>% filter(location=="dpw", sensor=="quantaq") %>% select(mean) %>% pull),
         " sd=",
-        round(digits=3, co_stat_df %>% filter(location=="dpw") %>% select(sd) %>% pull)
+        round(digits=3, co_stat_df %>% filter(location=="dpw", sensor=="quantaq") %>% select(sd) %>% pull)
     )
 )
-pha_hist = co_histogram(
+qaq_pha_hist = co_histogram(
     filter(tidy_combined_df, parameter=="co", location=="pha", sensor=="quantaq"), 
     title="QuantAQ PHA",
     subtitle=paste0(
         "mean=",
-        round(digits=3, co_stat_df %>% filter(location=="pha") %>% select(mean) %>% pull),
+        round(digits=3, co_stat_df %>% filter(location=="pha", sensor=="quantaq") %>% select(mean) %>% pull),
         " sd=",
-        round(digits=3, co_stat_df %>% filter(location=="pha") %>% select(sd) %>% pull) 
+        round(digits=3, co_stat_df %>% filter(location=="pha", sensor=="quantaq") %>% select(sd) %>% pull) 
     )
 )
-pema_hist = co_histogram(
+qaq_pema_hist = co_histogram(
     filter(tidy_combined_df, parameter=="co", location=="pema", sensor=="quantaq"), 
     title="QuantAQ PEMA",
     subtitle=paste0(
         "mean=",
-        round(digits=3, co_stat_df %>% filter(location=="pema") %>% select(mean) %>% pull),
+        round(digits=3, co_stat_df %>% filter(location=="pema", sensor=="quantaq") %>% select(mean) %>% pull),
         " sd=",
-        round(digits=3, co_stat_df %>% filter(location=="pema") %>% select(sd) %>% pull)
+        round(digits=3, co_stat_df %>% filter(location=="pema", sensor=="quantaq") %>% select(sd) %>% pull)
     )
 )
-patch = aqs_hist + dpw_hist + pha_hist + pema_hist
-ggsave(plot=patch, filename="./tidy_plots/quantaq/patched_histograms.png")
+bcn_dpw_hist = co_histogram(
+    filter(tidy_combined_df, parameter=="co", location=="dpw", sensor=="beaco2n"), 
+    title="BEACO2N DPW",
+    subtitle=paste0(
+        "mean=",
+        round(digits=3, co_stat_df %>% filter(location=="dpw", sensor=="beaco2n") %>% select(mean) %>% pull),
+        " sd=",
+        round(digits=3, co_stat_df %>% filter(location=="dpw", sensor=="beaco2n") %>% select(sd) %>% pull)
+    )
+)
+bcn_pha_hist = co_histogram(
+    filter(tidy_combined_df, parameter=="co", location=="pha", sensor=="beaco2n"), 
+    title="BEACO2N PHA",
+    subtitle=paste0(
+        "mean=",
+        round(digits=3, co_stat_df %>% filter(location=="pha", sensor=="beaco2n") %>% select(mean) %>% pull),
+        " sd=",
+        round(digits=3, co_stat_df %>% filter(location=="pha", sensor=="beaco2n") %>% select(sd) %>% pull) 
+    )
+)
+bcn_pema_hist = co_histogram(
+    filter(tidy_combined_df, parameter=="co", location=="pema", sensor=="beaco2n"), 
+    title="BEACO2N PEMA",
+    subtitle=paste0(
+        "mean=",
+        round(digits=3, co_stat_df %>% filter(location=="pema", sensor=="beaco2n") %>% select(mean) %>% pull),
+        " sd=",
+        round(digits=3, co_stat_df %>% filter(location=="pema", sensor=="beaco2n") %>% select(sd) %>% pull)
+    )
+)
 
-# for(site in c("dpw", "pema", "pha")) {
-#     tidy_co_histogram(
-#         filter(tidy_combined_df, parameter=="co", location %in% c("cranston", site)), 
-#         title=glue("Relative Frequency Histogram: {toupper(site)}"),
-#         filename=glue("./tidy_plots/co_hist_{site}.png")
-#     )
-# }
-# co_histogram(
-#     filter(tidy_combined_df, parameter=="co", sensor=="quantaq"),
-#     filename="./tidy_plots/co_hist_quantaq.png", 
-#     filltype="location",
-#     title="QuantAQ Relative Frequency Histogram"
-# )
-# co_histogram(
-#     filter(tidy_combined_df, parameter=="co", sensor=="aqs", location=="cranston"),
-#     filename="./tidy_plots/co_hist_aqs.png",
-#     title="AQS RF Hist"
-# )
+
+patch = (qaq_dpw_hist + qaq_pha_hist + qaq_pema_hist) / (bcn_dpw_hist + bcn_pha_hist + bcn_pema_hist)
+ggsave(
+    plot=patch, 
+    filename="./plots/quantaq_co_analysis/patched_histograms.png"
+)
+ggsave(plot=aqs_hist, file="./plots/quantaq_co_analysis/aqs_histogram.png")
