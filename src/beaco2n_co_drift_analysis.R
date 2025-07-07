@@ -4,19 +4,23 @@ library(checkmate)
 library(zoo)
 library(pracma)
 
+source("./src/import_cleaned.R")
+
 AVG_WINDOW = 24*7
 SAVGOL_FILTER_LEN = 24*7-1
 
 unlink(c("./plots/*.png", "./plots/*.png"), expand=TRUE) # Hit Ctrl-Enter on this line to clear temporary files.
 
-combined_df = read.csv("./clean_data/all_co_temp_rh_2022.csv")
-combined_df$date = as.POSIXct(combined_df$date, tz="UTC")
-tidy_combined_df = combined_df %>% pivot_longer( # Convert combined_df to tidy format
-    cols = -date,
-    names_to = c("parameter","sensor","location"),
-    values_to = "value",
-    names_pattern = "([^_]+)_([^_]+)_(.+)"
-)
+# combined_df = read.csv("./clean_data/all_co_temp_rh_2022.csv")
+# combined_df$date = as.POSIXct(combined_df$date, tz="UTC")
+# tidy_combined_df = combined_df %>% pivot_longer( # Convert combined_df to tidy format
+#     cols = -date,
+#     names_to = c("parameter","sensor","location"),
+#     values_to = "value",
+#     names_pattern = "([^_]+)_([^_]+)_(.+)"
+# )
+
+tidy_combined_df = import_cleaned()
 
 # BEACO2N DRIFT:
 # 1) Plot BEACO2N vs AQS residual over time (Myron): residual, rolling avg residual, stat tests for residual.
