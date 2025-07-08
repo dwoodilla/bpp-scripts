@@ -13,6 +13,9 @@ bcn_df = {os.path.splitext(os.path.basename(f))[0] : pd.read_csv(f) for f in bcn
 qaq_df = {os.path.splitext(os.path.basename(f))[0] : pd.read_csv(f) for f in qaq_files}
 aqs_df = {os.path.splitext(os.path.basename(f))[0] : pd.read_csv(f) for f in aqs_files}
 
+def import_bcn():
+    sen
+
 def clean_bcn(df : pd.DataFrame)-> pd.DataFrame:
     df.rename(columns={"datetime":"date", "pm2_5":"pm25"}, inplace=True)
     df["date"] = pd.to_datetime(df["date"], utc=True).dt.round("h")
