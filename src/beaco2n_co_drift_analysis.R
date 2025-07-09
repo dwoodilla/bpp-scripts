@@ -3,8 +3,9 @@ library(openair)
 library(checkmate)
 library(zoo)
 library(pracma)
+library(ggpmisc)
 
-source("./src/import_cleaned.R")
+source("./import/import_cleaned.R")
 
 AVG_WINDOW = 24*7
 SAVGOL_FILTER_LEN = 24*7-1
@@ -74,7 +75,6 @@ season = function(vec) {
         )
     )
 }
-
 count_from_season_start = function(vec) {
     d = as.POSIXct(vec)
     sn = season(vec)
@@ -85,7 +85,14 @@ count_from_season_start = function(vec) {
             sn=="Summer" ~ make_datetime(year=year(d), month=6, day=1),
             sn=="Fall" ~ make_datetime(year=year(d), month=9, day=1)
         )
-    return(int_length(interval(start=sn_start, end=d, tz="UTC")))
+    seconds_from_sn_start = int_length(interval(start=sn_start, end=d, tz="UTC"))
+    days_from_sn_start = seconds_from_sn_start/86400 # divide by seconds per day
+    return(days_from_sn_start)
+}
+mos_from_deployment_start_fn = function(vec) {
+    date = ymd_hms(format(vec, "%F %T"), tz="UTC")
+    dp_start <- make_datetime(year = 2022, month = 7, day = 1, tz = "UTC")
+    return(interval(dp_start, date) %/% months(1))
 }
 
 plot_graphs = function(dataset, dataset_name) {
@@ -287,6 +294,33 @@ myron_savgol_long_seasonal = myron_savgol_long %>%
         from_sn_start=count_from_season_start(date)
     ) 
 
-plot_graphs(myron_df_long_seasonal, "original")
-plot_graphs(myron_rolling_long_seasonal, "rolling")
-plot_graphs(myron_savgol_long_seasonal, "savgol")
+# plot_graphs(myron_df_long_seasonal, "original")
+# plot_graphs(myron_rolling_long_seasonal, "rolling")
+# plot_graphs(myron_savgol_long_seasonal, "savgol")
+
+myron_df_wide_season_deployment = myron_df_wide %>%
+    mutate(
+        year=if_else(month(date)==12, year(date)+1, year(date)),
+        year=factor(year, levels=c(2022,2023,2024)),
+        season=season(date), 
+        season=factor(season, levels = c("Winter", "Spring", "Summer", "Fall")),
+        from_sn_start=count_from_season_start(date),
+        mos_from_deployment_start = mos_from_deployment_start_fn(date)
+    )
+
+deployment_plot = ggplot(
+    data=myron_df_wide_season_deployment,
+    mapping=aes(
+        x=aqs,
+        y=beaco2n
+    )
+) + 
+facet_wrap(
+    ~ mos_from_deployment_start, 
+    ncol=3, 
+) +
+stat_poly_line() + stat_poly_eq() +
+geom_abline(slope=1, intercept=0, color="red") +
+geom_point() 
+print(deployment_plot)
+

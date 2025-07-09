@@ -4,7 +4,7 @@ library(tidyverse)
 import_cleaned = function() {
     all_params = read.csv("./clean_data/all_co_temp_rh_2022.csv")
 
-    all_params$date = as.POSIXct(combined_df$date, tz="UTC")
+    all_params$date = as.POSIXct(all_params$date, tz="UTC")
     all_params = all_params %>% pivot_longer( # Convert combined_df to tidy format
         cols = -date,
         names_to = c("parameter","sensor","location"),
