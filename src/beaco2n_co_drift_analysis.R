@@ -4,6 +4,7 @@ library(checkmate)
 library(zoo)
 library(pracma)
 library(ggpmisc)
+library(gridExtra)
 
 source("./import/import_cleaned.R")
 
@@ -298,18 +299,14 @@ myron_savgol_long_seasonal = myron_savgol_long %>%
 # plot_graphs(myron_rolling_long_seasonal, "rolling")
 # plot_graphs(myron_savgol_long_seasonal, "savgol")
 
-myron_df_wide_season_deployment = myron_df_wide %>%
+myron_df_wide_deployment = myron_df_wide %>%
     mutate(
-        year=if_else(month(date)==12, year(date)+1, year(date)),
-        year=factor(year, levels=c(2022,2023,2024)),
-        season=season(date), 
-        season=factor(season, levels = c("Winter", "Spring", "Summer", "Fall")),
-        from_sn_start=count_from_season_start(date),
-        mos_from_deployment_start = mos_from_deployment_start_fn(date)
+        mos_from_deployment_start = mos_from_deployment_start_fn(date),
+        yrs_from_deployment_start = floor(mos_from_deployment_start/12)
     )
 
 deployment_plot = ggplot(
-    data=myron_df_wide_season_deployment,
+    data=myron_df_wide_deployment,
     mapping=aes(
         x=aqs,
         y=beaco2n
@@ -321,6 +318,40 @@ facet_wrap(
 ) +
 stat_poly_line() + stat_poly_eq() +
 geom_abline(slope=1, intercept=0, color="red") +
-geom_point() 
+geom_point() + 
+labs(
+    title="Myron: AQS vs. BEACO2N",
+    subtitle="Correlation over time since July 2022"
+)
 print(deployment_plot)
 
+
+
+# myron_df_long_deployment = myron_df_wide_deployment %>%
+#     mutate(res = beaco2n-aqs) %>%
+#     pivot_longer(
+#         cols=c(beaco2n, aqs, res),
+#         names_to="sensor",
+#         values_to="value"
+#     )
+
+summary_months = myron_df_wide_deployment %>%
+    group_by(mos_from_deployment_start) %>%
+    summarize(
+        `R^2`=round(cor(beaco2n, aqs)^2,digits=4),
+        RMSE=round(sqrt(mean((beaco2n-aqs)^2)), digits=4),
+        MBE=round(mean(beaco2n-aqs), digits=4)
+    )
+summary_years = myron_df_wide_deployment %>%
+    group_by(yrs_from_deployment_start) %>%
+    summarize(
+        `R^2`=round(cor(beaco2n, aqs)^2, digits=4),
+        RMSE=round(sqrt(mean((beaco2n-aqs)^2)), digits=4),
+        MBE=round(mean(beaco2n-aqs), digits=4)
+    )
+pdf(file="./plots/beaco2n_co_drift_analysis/original/stats_month.pdf", height=11, width=8.5)
+grid.table(summary_months)
+dev.off()
+pdf(file="./plots/beaco2n_co_drift_analysis/original/stats_year.pdf", height=11, width=8.5)
+grid.table(summary_years)
+dev.off()
