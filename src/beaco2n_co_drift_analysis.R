@@ -22,7 +22,7 @@ unlink(c("./plots/*.png", "./plots/*.png"), expand=TRUE) # Hit Ctrl-Enter on thi
 #     names_pattern = "([^_]+)_([^_]+)_(.+)"
 # )
 
-tidy_combined_df = import_cleaned()
+tidy_combined_df = import_co()
 
 # BEACO2N DRIFT:
 # 1) Plot BEACO2N vs AQS residual over time (Myron): residual, rolling avg residual, stat tests for residual.
@@ -318,12 +318,12 @@ facet_wrap(
 ) +
 stat_poly_line() + stat_poly_eq() +
 geom_abline(slope=1, intercept=0, color="red") +
-geom_point() + 
+geom_point(alpha=0.05) + 
 labs(
     title="Myron: AQS vs. BEACO2N",
     subtitle="Correlation over time since July 2022"
 )
-print(deployment_plot)
+ggsave(plot=deployment_plot, filename="./plots/beaco2n_co_drift_analysis/original/deployment_plot.png")
 
 
 
@@ -349,9 +349,9 @@ summary_years = myron_df_wide_deployment %>%
         RMSE=round(sqrt(mean((beaco2n-aqs)^2)), digits=4),
         MBE=round(mean(beaco2n-aqs), digits=4)
     )
-pdf(file="./plots/beaco2n_co_drift_analysis/original/stats_month.pdf", height=11, width=8.5)
+png(file="./plots/beaco2n_co_drift_analysis/original/stats_month.png", height=11, width=8.5, units="in", res=300)
 grid.table(summary_months)
 dev.off()
-pdf(file="./plots/beaco2n_co_drift_analysis/original/stats_year.pdf", height=11, width=8.5)
+png(file="./plots/beaco2n_co_drift_analysis/original/stats_year.png", height=11, width=8.5, units="in", res=300)
 grid.table(summary_years)
 dev.off()
