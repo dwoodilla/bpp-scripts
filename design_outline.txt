@@ -1,0 +1,11 @@
+Drift analysis: High priority
+    Want plotting function that generalizes for each site.
+        ^ Needs a dataframe that contains data for multiple sites.
+    Want one function for self-reference, one function for AQS reference, and one for variance analysis.
+Data importing and cleaning: medium priority
+    Need to streamline process for importing and cleaning data
+    Need to standardize scripts so they all make same assumptions about data.
+    Factor import/cleaning into external files
+
+Documentation: low priority (before fall)
+    Need to document code + add readme
