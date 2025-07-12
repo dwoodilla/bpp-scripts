@@ -98,9 +98,6 @@ mos_from_deployment_start_fn = function(vec) {
     return(interval(dp_start, date) %/% months(1))
 }
 
-
-
-
 plot_graphs = function(dataset, dataset_name) {
     year_by_season_ts = 
         ggplot(
