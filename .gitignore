@@ -3,3 +3,6 @@
 .RData
 .Ruserdata
 .ipynb_checkpoints
+test*.csv
+plots/
+tidy_plots/

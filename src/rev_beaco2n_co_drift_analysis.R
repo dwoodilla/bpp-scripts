@@ -114,4 +114,4 @@ co_long = co %>%
         days_into_sn=days_into_season(date),
         mos_into_deployment = mos_into_deployment(date, sensor, location)
     )
-write.csv(co_long, "./test.csv")
+# write.csv(co_long, "./test.csv")

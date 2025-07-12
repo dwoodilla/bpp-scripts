@@ -9,3 +9,4 @@ Data importing and cleaning: medium priority
 
 Documentation: low priority (before fall)
     Need to document code + add readme
+
