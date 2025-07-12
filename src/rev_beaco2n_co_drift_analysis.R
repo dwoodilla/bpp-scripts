@@ -12,14 +12,15 @@ SAVGOL_FILTER_LEN = 24*7-1
 
 co = import_co()
 
-deployment_dates = co %>%
+dates_of_deployment = co %>%
     filter(parameter == "co", sensor %in% c("aqs", "beaco2n")) %>%
     arrange(date) %>%
     group_by(sensor, location) %>%
     filter(!is.na(value)) %>%
     slice(1) %>%
     ungroup() %>%
-    select(sensor, location, date)
+    select(sensor, location, deployment_start=date)
+
 
 season = function(date_vec) {
     m = month(as.Date(date_vec))
@@ -48,22 +49,24 @@ days_into_season = function(date_vec) {
     return(days_from_sn_start)
 }
 
-# mos_into_deployment = function(date_vec, sensor, location) {
-#     date = ymd_hms(format(date_vec, "%F %T"), tz="UTC")
-#     dp_start = deployment_dates[[c(sensor, location)]]
-#     mos_into_deployment = round(interval(dp_start, date) %/% months(1), digits=6) 
-#     return(mos_into_deployment)
-# }
+# mos_into_deployment = function(date_vec, sensor_vec, location_vec) {
 
-mos_into_deployment = function(date_vec, sensor_vec, location_vec) {
-    dp_start = deployment_dates %>%
-        filter(sensor %in% sensor_vec, location %in% location_vec) %>%
-        select(date) %>% pull()
-    date = ymd_hms(format(date_vec, "%F %T"), tz = "UTC")
-    ret = round(interval(dp_start, date) %/% months(1), digits = 6)
-    print(head(ret))
-    return(ret)
-}
+#     curr_date = ymd_hms(format(date_vec, "%F %T"), tz = "UTC")
+#     dp_start_vec = map_dbl(
+#         seq_along(date_vec),
+#         function (i) {
+#             dp_start_date = dates_of_deployment[
+#                 dates_of_deployment$sensor == sensor_vec[i] &
+#                 dates_of_deployment$location == location_vec[i], 
+#                 "date"
+#             ][[1]]
+#             print(dp_start_date)
+#             ret = round(interval(dp_start_date, curr_date) %/% months(1), digits = 6)
+#             return(ret)
+#         }
+#     )
+#     return(dp_start_vec)
+# }
 
 co_long = co %>% 
     filter(parameter=="co", sensor %in% c("aqs","beaco2n")) %>%
@@ -100,6 +103,9 @@ co_long = co %>%
         sn_year=factor(if_else(month(date)==12, year(date)+1, year(date)), levels=2022:2025),
         season=factor(season(date), levels=c("Winter", "Spring", "Summer", "Fall")),
         days_into_sn=days_into_season(date),
-        mos_into_deployment = mos_into_deployment(date, sensor, location)
     )
-# write.csv(co_long, "./test.csv")
+co_long <- co_long %>%
+    filter(!is.na(value)) %>%
+    left_join(dates_of_deployment, by = c("sensor", "location")) %>%
+    mutate(mos_into_deployment = interval(deployment_start, date) %/% months(1))
+print(tail(co_long), width=Inf)

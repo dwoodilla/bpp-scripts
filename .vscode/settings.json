@@ -5,7 +5,14 @@
     
   "r.rterm.windows": "C:\\Users\\dwoodill\\AppData\\Local\\Programs\\R\\R-4.5.1\\bin\\R.exe",
   "r.rpath.windows": "C:\\Users\\dwoodill\\AppData\\Local\\Programs\\R\\R-4.5.1\\bin\\R.exe",
-  "r.rterm.mac": "/Library/Frameworks/R.framework/Resources/bin/R",
+  "r.rpath.mac": "/usr/local/bin/R",
+  "r.rterm.mac": "/Library/Frameworks/R.framework/Resources/R",
+  // "r.rterm.mac" : "/Users/mikewoodilla/.local/bin/radian",
+  // "r.rterm.option" : [
+  //   "--no-save",
+  //   "--no-restore",
+  //   "--r-binary=/Library/Frameworks/R.framework/Resources/bin/R"
+  // ],
   "r.alwaysUseActiveTerminal": true,
   "r.bracketedPaste": false,
   "r.sessionWatcher": true,
