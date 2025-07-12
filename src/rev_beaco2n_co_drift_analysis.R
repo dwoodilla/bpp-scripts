@@ -11,28 +11,15 @@ AVG_WINDOW = 24*7
 SAVGOL_FILTER_LEN = 24*7-1
 
 co = import_co()
-print(head(co))
 
-deployment_dates = hashmap()
-
-first_dates = co %>%
+deployment_dates = co %>%
     filter(parameter == "co", sensor %in% c("aqs", "beaco2n")) %>%
     arrange(date) %>%
     group_by(sensor, location) %>%
     filter(!is.na(value)) %>%
     slice(1) %>%
-    ungroup()
-walk2(
-    .x = first_dates$sensor,
-    .y = first_dates$location,
-    .f = ~ {
-        key = c(.x, .y)
-        deployment_dates[[key]] = first_dates %>%
-        filter(sensor == .x, location == .y) %>%
-        pull(date) %>%
-        first()
-    }
-)
+    ungroup() %>%
+    select(sensor, location, date)
 
 season = function(date_vec) {
     m = month(as.Date(date_vec))
@@ -69,12 +56,13 @@ days_into_season = function(date_vec) {
 # }
 
 mos_into_deployment = function(date_vec, sensor_vec, location_vec) {
-    map2_dbl(sensor_vec, location_vec, ~ {
-        key = c(.x, .y)
-        dp_start = deployment_dates[[key]]
-        date = ymd_hms(format(date_vec, "%F %T"), tz = "UTC")
-        round(interval(dp_start, date) %/% months(1), digits = 6)
-    })
+    dp_start = deployment_dates %>%
+        filter(sensor %in% sensor_vec, location %in% location_vec) %>%
+        select(date) %>% pull()
+    date = ymd_hms(format(date_vec, "%F %T"), tz = "UTC")
+    ret = round(interval(dp_start, date) %/% months(1), digits = 6)
+    print(head(ret))
+    return(ret)
 }
 
 co_long = co %>% 
