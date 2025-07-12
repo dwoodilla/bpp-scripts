@@ -21,7 +21,6 @@ dates_of_deployment = co %>%
     ungroup() %>%
     select(sensor, location, deployment_start=date)
 
-
 season = function(date_vec) {
     m = month(as.Date(date_vec))
     return(
@@ -48,25 +47,6 @@ days_into_season = function(date_vec) {
     days_from_sn_start = round(seconds_from_sn_start/86400, digits=6) # divide by seconds per day
     return(days_from_sn_start)
 }
-
-# mos_into_deployment = function(date_vec, sensor_vec, location_vec) {
-
-#     curr_date = ymd_hms(format(date_vec, "%F %T"), tz = "UTC")
-#     dp_start_vec = map_dbl(
-#         seq_along(date_vec),
-#         function (i) {
-#             dp_start_date = dates_of_deployment[
-#                 dates_of_deployment$sensor == sensor_vec[i] &
-#                 dates_of_deployment$location == location_vec[i], 
-#                 "date"
-#             ][[1]]
-#             print(dp_start_date)
-#             ret = round(interval(dp_start_date, curr_date) %/% months(1), digits = 6)
-#             return(ret)
-#         }
-#     )
-#     return(dp_start_vec)
-# }
 
 co_long = co %>% 
     filter(parameter=="co", sensor %in% c("aqs","beaco2n")) %>%
@@ -103,9 +83,52 @@ co_long = co %>%
         sn_year=factor(if_else(month(date)==12, year(date)+1, year(date)), levels=2022:2025),
         season=factor(season(date), levels=c("Winter", "Spring", "Summer", "Fall")),
         days_into_sn=days_into_season(date),
-    )
-co_long <- co_long %>%
+    ) %>%
     filter(!is.na(value)) %>%
     left_join(dates_of_deployment, by = c("sensor", "location")) %>%
     mutate(mos_into_deployment = interval(deployment_start, date) %/% months(1))
-print(tail(co_long), width=Inf)
+
+# Plot timeseries of measurement and reference sensor, faceted by season. 
+# `dataset` must be in long format and contain both measurement and reference data.
+timeseries_year_season = function(dataset, noise_filter, meas_sensor, meas_location, ext_ref = FALSE, ref_sensor, ref_location, filepath) {
+    plot_data = dataset %>% filter(sensor==meas_sensor, filter==noise_filter, location==meas_location)
+    if (!ext_ref) {
+        if (missing(ref_sensor) | missing(ref_location)) {
+            stop("must have self_ref=TRUE or provide ref_sensor and ref_location.")
+        }
+        ref_data = dataset %>% filter(sensor==ref_sensor, filter==noise_filter, location==ref_location)
+        plot_data = bind_rows(plot_data, ref_data, .id="plottype_id") # id==1 <=> measurement, id==2 <=> reference
+    }
+    year_by_season_ts = 
+        ggplot(
+            data=plot_data, 
+            mapping={
+                if (!ext_ref) { aes(x=days_into_sn, y=value, color=plottype_id) } 
+                else { aes(x=days_into_sn, y=value) }
+            }
+        ) + 
+        facet_grid(rows=vars(sn_year), cols=vars(season)) +
+        geom_line() + theme_bw() +
+        theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
+        geom_hline(yintercept = 0, color="red") +
+        labs(
+            title="Timeseries faceted by Year and Season.",
+            # subtitle=paste0("Measurement="),
+            x = "Days from first day of season",
+            y = "CO (ppm)",
+            # caption=dataset_name,
+            # color=c(paste("Measurement:",meas_sensor,"@",meas_location), paste("Reference:",ref_sensor,"@",ref_location))
+        )
+    ggsave(plot=year_by_season_ts, filename=filepath)
+}
+
+timeseries_year_season(
+    co_long, 
+    noise_filter="savgol", 
+    meas_sensor="beaco2n", 
+    meas_location="ccri", 
+    ext_ref=TRUE, 
+    ref_sensor="beaco2n",
+    ref_location="dpw",
+    filepath="./test.png"
+)
