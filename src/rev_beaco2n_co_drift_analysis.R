@@ -112,15 +112,6 @@ arrange_plot_data = function(dataset, noise_filter, meas_sensor, meas_location, 
             ungroup() %>%
             select(month, day, hour, value, date) %>%
             rename(value_ref = value, date_ref = date)
-        # first_year_ref = plot_data %>%
-        #     filter(mos_into_deployment <= 12) %>%
-        #     mutate(
-        #         month=month(date),
-        #         day=day(date),
-        #         hour=hour(date)
-        #     ) %>%
-        #     select(month,day,hour,value) %>%
-        #     rename(value_ref=value)
         ref_data = plot_data %>%
             mutate(
                 month=month(date),
@@ -130,18 +121,6 @@ arrange_plot_data = function(dataset, noise_filter, meas_sensor, meas_location, 
             left_join(first_year_ref, by=c("month","day","hour"), relationship="many-to-one") %>%
             mutate(value=value_ref) %>%
             select(date, everything(), -month, -day, -hour)
-        # first_depl_year = plot_data %>% filter(mos_into_deployment <= 12)
-        # ref_data = plot_data %>%
-        #     mutate(
-        #         value = # work in progress.
-        #     )
-        # max_date = plot_data %>% arrange(desc(date)) %>% slice(1) %>% pull(date)
-        # ref_data = plot_data %>% 
-        #     filter(year(date) <= year(ymd_hms(max_date))-1) %>%
-        #     mutate(
-        #         date = date %m+% years(1),
-        #         sn_year = factor(as.numeric(as.character(sn_year)) + 1, levels = 2018:2030),
-        #     )
     }
     plot_data = plot_data %>% 
         left_join(y=ref_data, by="date", suffix=c("_meas","_ref")) %>%
