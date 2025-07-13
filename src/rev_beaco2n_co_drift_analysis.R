@@ -7,8 +7,8 @@ library(zoo)
 library(r2r)
 source("./import/import_cleaned.R")
 
-AVG_WINDOW = 24*7
-SAVGOL_FILTER_LEN = 24*7-1
+AVG_WINDOW = 24
+SAVGOL_FILTER_LEN = 24+1
 
 co = import_co()
 # co_long = read_csv("./clean_data/beaco2n_drift_cleaned.csv")
@@ -100,13 +100,48 @@ arrange_plot_data = function(dataset, noise_filter, meas_sensor, meas_location, 
         }
         ref_data = dataset %>% filter(sensor==ref_sensor, filter==noise_filter, location==ref_location)
     } else {
-        max_date = plot_data %>% arrange(desc(date)) %>% slice(1) %>% pull(date)
-        ref_data = plot_data %>% 
-            filter(year(date) <= year(ymd_hms(max_date))-1) %>%
+        first_year_ref = plot_data %>%
+            filter(mos_into_deployment <= 12) %>%
             mutate(
-                date = date %m+% years(1),
-                sn_year = factor(as.numeric(as.character(sn_year)) + 1, levels = 2018:2030),
-            )
+                month = month(date),
+                day = day(date),
+                hour = hour(date)
+            ) %>%
+            group_by(month, day, hour) %>%
+            slice_min(mos_into_deployment, with_ties = FALSE) %>%
+            ungroup() %>%
+            select(month, day, hour, value, date) %>%
+            rename(value_ref = value, date_ref = date)
+        # first_year_ref = plot_data %>%
+        #     filter(mos_into_deployment <= 12) %>%
+        #     mutate(
+        #         month=month(date),
+        #         day=day(date),
+        #         hour=hour(date)
+        #     ) %>%
+        #     select(month,day,hour,value) %>%
+        #     rename(value_ref=value)
+        ref_data = plot_data %>%
+            mutate(
+                month=month(date),
+                day=day(date),
+                hour=hour(date)
+            ) %>%
+            left_join(first_year_ref, by=c("month","day","hour"), relationship="many-to-one") %>%
+            mutate(value=value_ref) %>%
+            select(date, everything(), -month, -day, -hour)
+        # first_depl_year = plot_data %>% filter(mos_into_deployment <= 12)
+        # ref_data = plot_data %>%
+        #     mutate(
+        #         value = # work in progress.
+        #     )
+        # max_date = plot_data %>% arrange(desc(date)) %>% slice(1) %>% pull(date)
+        # ref_data = plot_data %>% 
+        #     filter(year(date) <= year(ymd_hms(max_date))-1) %>%
+        #     mutate(
+        #         date = date %m+% years(1),
+        #         sn_year = factor(as.numeric(as.character(sn_year)) + 1, levels = 2018:2030),
+        #     )
     }
     plot_data = plot_data %>% 
         left_join(y=ref_data, by="date", suffix=c("_meas","_ref")) %>%
@@ -130,25 +165,15 @@ arrange_plot_data = function(dataset, noise_filter, meas_sensor, meas_location, 
         warning("Dropping rows of plot data with NA faceting variables.")
         plot_data = plot_data %>% filter(!is.na(sn_year), !is.na(season))
     }
-    # write.csv(plot_data, "./test.csv")
-    # stop("CALLED STOP")
-    return(plot_data)
+    return(plot_data %>% filter(!is.na(value)))
 }
 
 # Plot timeseries of measurement and reference sensor, faceted by season. 
 # `dataset` must be in long format and contain both measurement and reference data.
 timeseries_year_season = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath) {
-    plot_data = arrange_plot_data(
-        dataset, 
-        noise_filter, 
-        meas_sensor, 
-        meas_location,
-        self_ref,
-        ref_sensor,
-        ref_location
-    )
+    plot_data = arrange_plot_data(dataset, noise_filter, meas_sensor, meas_location, self_ref, ref_sensor, ref_location)
 
-    year_by_season_ts = 
+    ts_year_season = 
         ggplot(
             data=plot_data %>% filter(!is.na(value)), 
             mapping=aes(x=days_into_sn, y=value, color=plottype) 
@@ -162,16 +187,82 @@ timeseries_year_season = function(dataset, noise_filter, meas_sensor, meas_locat
             x = "Days from first day of season",
             y = "CO (ppm)",
         )
-    ggsave(plot=year_by_season_ts, filename=filepath)
+    ggsave(plot=ts_year_season, filename=filepath)
 }
 
-timeseries_year_season(
-    co_long, 
-    noise_filter="rolling", 
-    meas_sensor="beaco2n", 
-    meas_location="myron", 
-    self_ref=TRUE,
-    # ref_sensor="aqs",
-    # ref_location="myron",
-    filepath="./test.png"
+timeseries_season = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath) {
+    plot_data = arrange_plot_data(dataset, noise_filter, meas_sensor, meas_location, self_ref, ref_sensor, ref_location) 
+
+    ts_season = 
+        ggplot(
+            data=plot_data, 
+            mapping=aes(
+                x=days_into_sn,
+                y=value,
+                color=sn_year, #TODO: swap
+                linetype=sensor
+            )
+        ) + 
+        # scale_linetype_manual(values=c("dotdash","solid","longdash")) +
+        facet_wrap(~ season) +
+        geom_line() + theme_bw() +
+        theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
+        geom_hline(yintercept = 0, color="red") +
+        labs(
+            title="Timeseries faceted by Season",
+            x = "Days from first day of season",
+            y = "CO (ppm)",
+            color="Sensor",
+            linetype="Year"
+        )
+    ggsave(plot=ts_season, filename=filepath)
+ 
+}
+
+timeseries_year_season( 
+    co_long, noise_filter="original", meas_sensor="beaco2n", meas_location="myron", self_ref=TRUE, filepath="./ts_yr_sn.png"
 )
+timeseries_season(
+    co_long, noise_filter="original", meas_sensor="beaco2n", meas_location="myron", self_ref=TRUE, filepath="./ts_sn.png"
+)
+
+box_year_season = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath) {
+    plot_data = arrange_plot_data(dataset, noise_filter, meas_sensor, meas_location, self_ref, ref_sensor, ref_location)
+    box_year_season = 
+        ggplot(
+            data=plot_data %>% filter(!is.na(value)), 
+            mapping=aes(x=sensor, y=value, color=plottype) 
+        ) + 
+        facet_grid(rows=vars(sn_year), cols=vars(season)) +
+        geom_boxplot(na.rm=TRUE) + theme_bw() +
+        theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
+        # geom_hline(yintercept = 0, color="red") +
+        labs(
+            title="Boxplot faceted by Year and Season.",
+            x = "Sensor type",
+            y = "CO (ppm)",
+        )
+    ggsave(plot=box_year_season, filename=filepath)
+}
+box_year_season(co_long, "rolling", "beaco2n", "myron", FALSE, "aqs", "myron", "./box_yr_sn.png")
+
+violin_year_season = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath) {
+    plot_data = arrange_plot_data(dataset, noise_filter, meas_sensor, meas_location, self_ref, ref_sensor, ref_location)
+    violin_year_season = 
+        ggplot(
+            data=plot_data %>% filter(!is.na(value)), 
+            mapping=aes(x=sensor, y=value, color=plottype) 
+        ) + 
+        facet_grid(rows=vars(sn_year), cols=vars(season)) +
+        geom_violin(na.rm=TRUE) + theme_bw() +
+        theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
+        # geom_hline(yintercept = 0, color="red") +
+        labs(
+            title="Violin plot faceted by Year and Season.",
+            x = "Sensor type",
+            y = "CO (ppm)",
+        )
+    ggsave(plot=violin_year_season, filename=filepath)
+}
+
+violin_year_season(co_long, "rolling", "beaco2n", "myron", FALSE, "aqs", "myron", "./vionin_yr_sn.png")
