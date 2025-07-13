@@ -11,11 +11,11 @@ source("./import/import_cleaned.R")
 AVG_WINDOW = 24
 SAVGOL_FILTER_LEN = 24+1
 
-co = import_co()
+pm = import_pm()
 # co_long = read_csv("./clean_data/beaco2n_drift_cleaned.csv")
 
-dates_of_deployment = co %>%
-    filter(parameter == "co", sensor %in% c("aqs", "beaco2n")) %>%
+dates_of_deployment = pm %>%
+    filter(parameter %in% c("pm25","pm1","pm10"), sensor %in% c("quantaq", "beaco2n")) %>%
     arrange(date) %>%
     group_by(sensor, location) %>%
     filter(!is.na(value)) %>%
@@ -50,23 +50,8 @@ hours_into_season = function(date_vec) {
     return(hours_from_sn_start)
 }
 
-hours_into_deployment_month = function(date_vec) {
-    d = as.POSIXct(date_vec)
-    deployment_date = dates_of_deployment
-    sn_start = 
-        case_when(
-            sn=="Winter" ~ make_datetime(year=if_else(month(d)==12, year(d), year(d)-1), month=12, day=1),
-            sn=="Spring" ~ make_datetime(year=year(d), month=3, day=1),
-            sn=="Summer" ~ make_datetime(year=year(d), month=6, day=1),
-            sn=="Fall" ~ make_datetime(year=year(d), month=9, day=1)
-        )
-    hours_from_sn_start = interval(start=sn_start, end=d, tz="UTC") %/% hours(1)
-    # days_from_sn_start = seconds_from_sn_start/86400 # divide by seconds per day
-    return(hours_from_sn_start)
-}
-
-co_long = co %>% 
-    filter(parameter=="co", sensor %in% c("aqs","beaco2n")) %>%
+pm_long = pm %>% 
+    filter(parameter %in% c("pm25","pm1","pm10"), sensor %in% c("quantaq", "beaco2n")) %>%
     pivot_wider(
         id_cols = c("date","location"),
         names_from = "sensor",
@@ -75,16 +60,16 @@ co_long = co %>%
     ) %>%
     group_by(location) %>%
     mutate(
-        rolling_aqs = rollmean(original_aqs, k=AVG_WINDOW, align="center", fill=NA),
+        rolling_quantaq = rollmean(original_quantaq, k=AVG_WINDOW, align="center", fill=NA),
         rolling_beaco2n = rollmean(original_beaco2n, k=AVG_WINDOW, align="center", fill=NA), 
-        savgol_aqs = sgolayfilt(original_aqs, n=SAVGOL_FILTER_LEN, p=4),
+        savgol_quantaq = sgolayfilt(original_quantaq, n=SAVGOL_FILTER_LEN, p=4),
         savgol_beaco2n = sgolayfilt(original_beaco2n, n=SAVGOL_FILTER_LEN, p=4)
     ) %>%
     ungroup() %>%
     mutate(
-        original_res = original_beaco2n - original_aqs,
-        rolling_res = rolling_beaco2n - rolling_aqs,
-        savgol_res = savgol_beaco2n - savgol_aqs
+        original_res = original_beaco2n - original_quantaq,
+        rolling_res = rolling_beaco2n - rolling_quantaq,
+        savgol_res = savgol_beaco2n - savgol_quantaq
     ) %>%
     pivot_longer(
         cols = -c(date, location),
@@ -93,7 +78,7 @@ co_long = co %>%
         values_to = "value"
     ) %>% 
     semi_join( # Remove sensor/location artifacts
-        y = co %>% select(sensor, location) %>% distinct(), 
+        y = pm %>% select(sensor, location) %>% distinct(), 
         by = c("sensor", "location")
     ) %>%
     mutate(
@@ -105,13 +90,9 @@ co_long = co %>%
     left_join(dates_of_deployment, by = c("sensor", "location")) %>%
     mutate(
         mos_into_deployment = interval(deployment_start, date) %/% months(1),
-        hrs_into_deployment = interval(deployment_start, date) %/% hours(1),
-        hrs_into_deployment_month = interval(
-            deployment_start %m+% months(mos_into_deployment),
-            date,
-            tz="UTC"
-        ) %/% hours(1)
-    )
+        hrs_into_deployment = interval(deployment_start, date) %/% hours(1)
+    ) %>%
+    select(everything(), -deployment_start)
 
 
 arrange_plot_data = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location) {
@@ -156,11 +137,9 @@ arrange_plot_data = function(dataset, noise_filter, meas_sensor, meas_location, 
             hours_into_sn_resid = hours_into_sn_meas,
             mos_into_deployment_resid = mos_into_deployment_meas,
             hrs_into_deployment_resid = hrs_into_deployment_meas,
-            hrs_into_deployment_month_resid = hrs_into_deployment_month_meas,
             filter_resid = filter_meas,
             mos_into_deployment_ref=mos_into_deployment_meas,
             hrs_into_deployment_ref=hrs_into_deployment_meas,
-            hrs_into_deployment_month_ref = hrs_into_deployment_month_meas,
             season_ref=season_meas,
             hours_into_sn_ref=hours_into_sn_meas
         ) %>%
@@ -176,16 +155,6 @@ arrange_plot_data = function(dataset, noise_filter, meas_sensor, meas_location, 
     return(plot_data %>% filter(!is.na(value)))
 }
 
-arrange_deployment_data = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location) {
-    ret = arrange_plot_data(dataset, noise_filter, meas_sensor, meas_location, self_ref, ref_sensor, ref_location) %>%
-        pivot_wider(
-            id_cols=c(date, mos_into_deployment, hrs_into_deployment, hrs_into_deployment_month, sn_year, season),
-            names_from=plottype,
-            values_from=value
-        ) %>%
-        filter(!is.na(ref))
-    return(ret)
-}
 # Plot timeseries of measurement and reference sensor, faceted by season. 
 # `dataset` must be in long format and contain both measurement and reference data.
 timeseries_year_season = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath) {
@@ -202,7 +171,7 @@ timeseries_year_season = function(dataset, noise_filter, meas_sensor, meas_locat
         labs(
             title="Timeseries faceted by Year and Season.",
             x = "Days from first day of season",
-            y = "CO (ppm)",
+            y = "PM (ppm)",
         )
     ggsave(plot=ts_year_season, filename=filepath)
 }
@@ -226,7 +195,7 @@ timeseries_season = function(dataset, noise_filter, meas_sensor, meas_location, 
         labs(
             title="Timeseries faceted by Season",
             x = "Days from first day of season",
-            y = "CO (ppm)",
+            y = "PM (ppm)",
             color="Sensor",
             linetype="Year"
         )
@@ -254,7 +223,7 @@ box_year_season = function(dataset, noise_filter, meas_sensor, meas_location, se
         labs(
             title="Boxplot faceted by Year and Season.",
             x = "Sensor type",
-            y = "CO (ppm)",
+            y = "PM (ppm)",
         )
     ggsave(plot=box_year_season, filename=filepath)
 }
@@ -275,7 +244,7 @@ box_season = function(dataset, noise_filter, meas_sensor, meas_location, self_re
         labs(
             title="Boxplot faceted by season.",
             x = "Year",
-            y = "CO (ppm)"
+            y = "PM (ppm)"
         )
     ggsave(plot=box_sn, filename=filepath)
 }
@@ -297,7 +266,7 @@ violin_year_season = function(dataset, noise_filter, meas_sensor, meas_location,
         labs(
             title="Violin plot faceted by Year and Season.",
             x = "Sensor type",
-            y = "CO (ppm)",
+            y = "PM (ppm)",
         )
     ggsave(plot=violin_year_season, filename=filepath)
 }
@@ -318,7 +287,7 @@ violin_season = function(dataset, noise_filter, meas_sensor, meas_location, self
         labs(
             title="Boxplot faceted by season.",
             x = "Year",
-            y = "CO (ppm)"
+            y = "PM (ppm)"
         )
     ggsave(plot=violin_sn, filename=filepath)
 }
@@ -327,7 +296,13 @@ violin_season = function(dataset, noise_filter, meas_sensor, meas_location, self
 # violin_season(co_long, "original", "beaco2n", "myron", TRUE, filepath="./violin_sn_self.png")
 
 deployment_correlation = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath) {
-    plot_data = arrange_deployment_data(dataset, noise_filter, meas_sensor, meas_location, self_ref, ref_sensor, ref_location) 
+    plot_data = arrange_plot_data(dataset, noise_filter, meas_sensor, meas_location, self_ref, ref_sensor, ref_location) %>%
+        pivot_wider(
+            id_cols=c(date, mos_into_deployment, hrs_into_deployment, sn_year, season),
+            names_from=plottype,
+            values_from=value
+        ) %>%
+        filter(!is.na(ref))
 
     deployment_plot = 
         ggplot(
@@ -351,44 +326,16 @@ deployment_correlation = function(dataset, noise_filter, meas_sensor, meas_locat
     ggsave(plot=deployment_plot, filename=filepath, width=16, height=22, units="in", dpi=300)
 }
 
-timeseries_deployment_residual = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath) {
-    plot_data = arrange_deployment_data(dataset, noise_filter, meas_sensor, meas_location, self_ref, ref_sensor, ref_location) 
-
-    # print(head(plot_data), width=Inf)
-    # browser()
-
-    deployment_plot = 
-        ggplot(
-            data=plot_data,
-            mapping=aes(
-                x=hrs_into_deployment_month,
-                y=resid
-            )
-        ) + 
-        facet_wrap(
-            ~ mos_into_deployment, 
-            ncol=3, 
-        ) +
-        # stat_poly_line() + stat_poly_eq() +
-        # geom_abline(slope=1, intercept=0, color="red") +
-        geom_line() + 
-        labs(
-            title="Dep plot test"
-            # subtitle="Correlation over time since July 2022"
-        )
-    ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300)
-}
-
-timeseries_deployment_residual(
-    dataset=co_long,
-    noise_filter="original",
-    meas_sensor="beaco2n",
-    meas_location="myron",
-    self_ref=FALSE,
-    ref_sensor="aqs",
-    ref_location="myron",
-    filepath="./test_depcor.png"
-)
+# deployment_correlation(
+#     dataset=co_long,
+#     noise_filter="savgol",
+#     meas_sensor="beaco2n",
+#     meas_location="myron",
+#     self_ref=TRUE,
+#     ref_sensor="aqs",
+#     ref_location="myron",
+#     filepath="./test_depcor.png"
+# )
 
 plot_all = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, basepath) {
     assert(endsWith(basepath, "/"))
@@ -397,7 +344,7 @@ plot_all = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=
         dataset = dataset,
         noise_filter = noise_filter,
         meas_sensor = meas_sensor,
-        meas_location=meas_location,
+        meas_location = meas_location,
         self_ref = self_ref,
         ref_sensor = ref_sensor,
         ref_location = ref_location,
@@ -407,7 +354,7 @@ plot_all = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=
         dataset = dataset,
         noise_filter = noise_filter,
         meas_sensor = meas_sensor,
-        meas_location=meas_location,
+        meas_location = meas_location,
         self_ref = self_ref,
         ref_sensor = ref_sensor,
         ref_location = ref_location,
@@ -417,7 +364,7 @@ plot_all = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=
         dataset = dataset,
         noise_filter = noise_filter,
         meas_sensor = meas_sensor,
-        meas_location=meas_location,
+        meas_location = meas_location,
         self_ref = self_ref,
         ref_sensor = ref_sensor,
         ref_location = ref_location,
@@ -427,7 +374,7 @@ plot_all = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=
         dataset = dataset,
         noise_filter = noise_filter,
         meas_sensor = meas_sensor,
-        meas_location=meas_location,
+        meas_location = meas_location,
         self_ref = self_ref,
         ref_sensor = ref_sensor,
         ref_location = ref_location,
@@ -437,7 +384,7 @@ plot_all = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=
         dataset = dataset,
         noise_filter = noise_filter,
         meas_sensor = meas_sensor,
-        meas_location=meas_location,
+        meas_location = meas_location,
         self_ref = self_ref,
         ref_sensor = ref_sensor,
         ref_location = ref_location,
@@ -447,7 +394,7 @@ plot_all = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=
         dataset = dataset,
         noise_filter = noise_filter,
         meas_sensor = meas_sensor,
-        meas_location=meas_location,
+        meas_location = meas_location,
         self_ref = self_ref,
         ref_sensor = ref_sensor,
         ref_location = ref_location,
@@ -455,28 +402,16 @@ plot_all = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=
     )
 }
 
-beaco2n_sites = 
-    list("myron","zuccolo","wecc","rocklib","silverlake","unitedway","cfs","pha","reservoir","ccri",
-        "mtpleasant","carnevale","martialarts","southprovlib","ecubed","ricollege","blackstone","rochambeaulib","provcollege","prek",
-        "smithhilllib","pema","rockspot","medschool","dpw")
-
-for(site in beaco2n_sites) {
+locations = list("dpw","pema","pha")
+for(location in locations) {
     plot_all(
-        dataset=co_long,
-        noise_filter="rolling",
-        meas_sensor="beaco2n",
-        meas_location=site,
-        self_ref=TRUE,
-        basepath=paste0("./plots/ref_beaco2n_co_drift_analysis/self_ref/",site,"/rolling/")
-    )
-    plot_all(
-        dataset=co_long,
-        noise_filter="rolling",
-        meas_sensor="beaco2n",
-        meas_location=site,
-        self_ref=FALSE,
-        ref_sensor="aqs",
-        ref_location="cranston",
-        basepath=paste0("./plots/ref_beaco2n_co_drift_analysis/ext_ref/",site,"/rolling/")
+    dataset=pm_long,
+    noise_filter="original",
+    meas_sensor="beaco2n",
+    meas_location=location,
+    self_ref=FALSE,
+    ref_sensor="quantaq",
+    ref_location=location,
+    basepath=paste0("./plots/pm_analysis/", location, "/")
     )
 }
