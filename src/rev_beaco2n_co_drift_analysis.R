@@ -44,7 +44,7 @@ days_into_season = function(date_vec) {
             sn=="Fall" ~ make_datetime(year=year(d), month=9, day=1)
         )
     seconds_from_sn_start = int_length(interval(start=sn_start, end=d, tz="UTC"))
-    days_from_sn_start = round(seconds_from_sn_start/86400, digits=6) # divide by seconds per day
+    days_from_sn_start = seconds_from_sn_start/86400 # divide by seconds per day
     return(days_from_sn_start)
 }
 
@@ -80,7 +80,7 @@ co_long = co %>%
         by = c("sensor", "location")
     ) %>%
     mutate(
-        sn_year=factor(if_else(month(date)==12, year(date)+1, year(date)), levels=2022:2025),
+        sn_year=factor(if_else(month(date)==12, year(date)+1, year(date)), levels=2018:2030),
         season=factor(season(date), levels=c("Winter", "Spring", "Summer", "Fall")),
         days_into_sn=days_into_season(date),
     ) %>%
@@ -88,24 +88,51 @@ co_long = co %>%
     left_join(dates_of_deployment, by = c("sensor", "location")) %>%
     mutate(mos_into_deployment = interval(deployment_start, date) %/% months(1))
 
+print(head(co_long), width=Inf)
+
+
 # Plot timeseries of measurement and reference sensor, faceted by season. 
 # `dataset` must be in long format and contain both measurement and reference data.
-timeseries_year_season = function(dataset, noise_filter, meas_sensor, meas_location, ext_ref = FALSE, ref_sensor, ref_location, filepath) {
+timeseries_year_season = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath) {
     plot_data = dataset %>% filter(sensor==meas_sensor, filter==noise_filter, location==meas_location)
-    if (!ext_ref) {
+    if (!self_ref) {
         if (missing(ref_sensor) | missing(ref_location)) {
-            stop("must have self_ref=TRUE or provide ref_sensor and ref_location.")
+            stop("Must have self_ref=TRUE or provide ref_sensor and ref_location.")
         }
         ref_data = dataset %>% filter(sensor==ref_sensor, filter==noise_filter, location==ref_location)
-        plot_data = bind_rows(plot_data, ref_data, .id="plottype_id") # id==1 <=> measurement, id==2 <=> reference
+    } else {
+        max_date = plot_data %>% arrange(desc(date)) %>% slice(1) %>% pull(date)
+        ref_data = plot_data %>% 
+            filter(year(date) <= year(ymd_hms(max_date))-1) %>%
+            mutate(
+                date = date %m+% years(1),
+                sn_year = factor(as.numeric(as.character(sn_year)) + 1, levels = 2018:2030),
+            )
     }
+    plot_data = plot_data %>% 
+        left_join(y=ref_data, by="date", suffix=c("_meas","_ref")) %>%
+        mutate(
+            value_resid = value_meas - value_ref,
+            # Copy remaining data from measurement to residual. 
+            # mos_into_deployment may need to depend on whether both sensors have data or not.
+            sensor_resid = "residual",
+            sn_year_resid = sn_year_meas,
+            season_resid = season_meas,
+            days_into_sn_resid = days_into_sn_meas,
+            mos_into_deployment_resid = mos_into_deployment_meas,
+            filter_resid = filter_meas
+        ) %>%
+        pivot_longer(
+            cols=matches("_(meas|ref|resid)$"),
+            names_to=c(".value", "plottype"),
+            names_pattern = "^(.*)_(ref|meas|resid)$"
+        )
+    print(tail(plot_data), width=Inf); stop("CALLED STOP")
+
     year_by_season_ts = 
         ggplot(
             data=plot_data, 
-            mapping={
-                if (!ext_ref) { aes(x=days_into_sn, y=value, color=plottype_id) } 
-                else { aes(x=days_into_sn, y=value) }
-            }
+            mapping=aes(x=days_into_sn, y=value, color=meas_or_ref) 
         ) + 
         facet_grid(rows=vars(sn_year), cols=vars(season)) +
         geom_line() + theme_bw() +
@@ -124,11 +151,11 @@ timeseries_year_season = function(dataset, noise_filter, meas_sensor, meas_locat
 
 timeseries_year_season(
     co_long, 
-    noise_filter="savgol", 
+    noise_filter="original", 
     meas_sensor="beaco2n", 
-    meas_location="ccri", 
-    ext_ref=TRUE, 
-    ref_sensor="beaco2n",
-    ref_location="dpw",
+    meas_location="myron", 
+    self_ref=TRUE,
+    # ref_sensor="aqs",
+    # ref_location="myron",
     filepath="./test.png"
 )
