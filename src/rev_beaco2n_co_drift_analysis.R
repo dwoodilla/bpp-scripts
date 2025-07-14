@@ -316,12 +316,12 @@ timeseries_deployment_residual = function(
     dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath,
     ...
 ) {
-    print(head(dataset), width=Inf)
+    # print(head(dataset), width=Inf)
 
     plot_data = arrange_deployment_data(dataset, noise_filter, meas_sensor, meas_location, self_ref, ref_sensor, ref_location) 
 
-    print(head(plot_data), width=Inf)
-    browser()
+    # print(head(plot_data), width=Inf)
+    # browser()
 
     deployment_plot = 
         ggplot(
@@ -364,6 +364,48 @@ violin_deployment_residual = function(
     ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300)
 
 }
+
+histogram_deployment = function(
+    dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath,
+    ...
+) {
+    plot_data = arrange_plot_data(dataset, noise_filter, meas_sensor, meas_location, self_ref, ref_sensor, ref_location) 
+
+    deployment_plot = 
+        ggplot(
+            data=plot_data %>% filter(plottype=="meas"),
+            mapping=aes(
+                x=value
+            )
+        ) + 
+        facet_wrap(
+            ~ mos_into_deployment, 
+            ncol=3, 
+        ) +
+        geom_histogram(
+            aes(
+                y=after_stat(count),
+                group=mos_into_deployment
+            )
+        ) +
+        labs(...)
+    ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+}
+
+histogram_deployment(
+    dataset=co_long,
+    noise_filter="original",
+    meas_sensor="beaco2n",
+    meas_location="myron",
+    self_ref=FALSE,
+    ref_sensor="aqs",
+    ref_location="myron",
+    filepath="./plots/hist_test.png",
+    title="Myron BEACO2N vs AQS histograms by op-month",
+    subtitle="Filter=original", 
+    x="CO reading",
+    y="BEACO2N CO reading (ppm)"
+)
 
 deployment_correlation(
     dataset=co_long,
