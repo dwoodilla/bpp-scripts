@@ -326,17 +326,6 @@ deployment_correlation = function(dataset, noise_filter, meas_sensor, meas_locat
     ggsave(plot=deployment_plot, filename=filepath, width=16, height=22, units="in", dpi=300)
 }
 
-# deployment_correlation(
-#     dataset=co_long,
-#     noise_filter="savgol",
-#     meas_sensor="beaco2n",
-#     meas_location="myron",
-#     self_ref=TRUE,
-#     ref_sensor="aqs",
-#     ref_location="myron",
-#     filepath="./test_depcor.png"
-# )
-
 plot_all = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, basepath) {
     assert(endsWith(basepath, "/"))
 
@@ -402,16 +391,20 @@ plot_all = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=
     )
 }
 
-locations = list("dpw","pema","pha")
-for(location in locations) {
-    plot_all(
-    dataset=pm_long,
-    noise_filter="original",
-    meas_sensor="beaco2n",
-    meas_location=location,
-    self_ref=FALSE,
-    ref_sensor="quantaq",
-    ref_location=location,
-    basepath=paste0("./plots/pm_analysis/", location, "/")
-    )
+# locations = list("dpw","pema","pha")
+# for(location in locations) {
+#     plot_all(
+#     dataset=pm_long,
+#     noise_filter="original",
+#     meas_sensor="beaco2n",
+#     meas_location=location,
+#     self_ref=FALSE,
+#     ref_sensor="quantaq",
+#     ref_location=location,
+#     basepath=paste0("./plots/pm_analysis/", location, "/")
+#     )
+# }
+
+pm_hist_overlay = function(dataset, noise_filter, meas_sensor, meas_location, ref_sensor, ref_location, basepath) {
+    
 }

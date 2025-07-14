@@ -34,7 +34,6 @@ season = function(date_vec) {
         )
     )
 }
-
 hours_into_season = function(date_vec) {
     d = as.POSIXct(date_vec)
     sn = season(date_vec)
@@ -46,22 +45,6 @@ hours_into_season = function(date_vec) {
             sn=="Fall" ~ make_datetime(year=year(d), month=9, day=1)
         )
     hours_from_sn_start = interval(start=sn_start, end=d, tz="UTC") %/% hours(1)
-    # days_from_sn_start = seconds_from_sn_start/86400 # divide by seconds per day
-    return(hours_from_sn_start)
-}
-
-hours_into_deployment_month = function(date_vec) {
-    d = as.POSIXct(date_vec)
-    deployment_date = dates_of_deployment
-    sn_start = 
-        case_when(
-            sn=="Winter" ~ make_datetime(year=if_else(month(d)==12, year(d), year(d)-1), month=12, day=1),
-            sn=="Spring" ~ make_datetime(year=year(d), month=3, day=1),
-            sn=="Summer" ~ make_datetime(year=year(d), month=6, day=1),
-            sn=="Fall" ~ make_datetime(year=year(d), month=9, day=1)
-        )
-    hours_from_sn_start = interval(start=sn_start, end=d, tz="UTC") %/% hours(1)
-    # days_from_sn_start = seconds_from_sn_start/86400 # divide by seconds per day
     return(hours_from_sn_start)
 }
 
@@ -188,7 +171,7 @@ arrange_deployment_data = function(dataset, noise_filter, meas_sensor, meas_loca
 }
 # Plot timeseries of measurement and reference sensor, faceted by season. 
 # `dataset` must be in long format and contain both measurement and reference data.
-timeseries_year_season = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath) {
+timeseries_year_season = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath, ...) {
     plot_data = arrange_plot_data(dataset, noise_filter, meas_sensor, meas_location, self_ref, ref_sensor, ref_location)
     ts_year_season = 
         ggplot(
@@ -199,14 +182,10 @@ timeseries_year_season = function(dataset, noise_filter, meas_sensor, meas_locat
         geom_line(na.rm=TRUE) + theme_bw() +
         theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
         geom_hline(yintercept = 0, color="red") +
-        labs(
-            title="Timeseries faceted by Year and Season.",
-            x = "Days from first day of season",
-            y = "CO (ppm)",
-        )
+        labs(...)
     ggsave(plot=ts_year_season, filename=filepath)
 }
-timeseries_season = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath) {
+timeseries_season = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath, ...) {
     plot_data = arrange_plot_data(dataset, noise_filter, meas_sensor, meas_location, self_ref, ref_sensor, ref_location) 
 
     ts_season = 
@@ -223,13 +202,7 @@ timeseries_season = function(dataset, noise_filter, meas_sensor, meas_location, 
         geom_line() + theme_bw() +
         theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
         geom_hline(yintercept = 0, color="red") +
-        labs(
-            title="Timeseries faceted by Season",
-            x = "Days from first day of season",
-            y = "CO (ppm)",
-            color="Sensor",
-            linetype="Year"
-        )
+        labs(...)
     ggsave(plot=ts_season, filename=filepath)
  
 }
@@ -240,7 +213,7 @@ timeseries_season = function(dataset, noise_filter, meas_sensor, meas_location, 
 #     co_long, noise_filter="original", meas_sensor="beaco2n", meas_location="myron", self_ref=TRUE, filepath="./ts_sn.png"
 # )
 
-box_year_season = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath) {
+box_year_season = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath, ...) {
     plot_data = arrange_plot_data(dataset, noise_filter, meas_sensor, meas_location, self_ref, ref_sensor, ref_location)
     box_year_season = 
         ggplot(
@@ -251,11 +224,7 @@ box_year_season = function(dataset, noise_filter, meas_sensor, meas_location, se
         geom_boxplot(na.rm=TRUE) + theme_bw() +
         theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
         # geom_hline(yintercept = 0, color="red") +
-        labs(
-            title="Boxplot faceted by Year and Season.",
-            x = "Sensor type",
-            y = "CO (ppm)",
-        )
+        labs(...)
     ggsave(plot=box_year_season, filename=filepath)
 }
 box_season = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath) {
@@ -283,7 +252,7 @@ box_season = function(dataset, noise_filter, meas_sensor, meas_location, self_re
 # box_season(co_long, "original", "beaco2n", "myron", FALSE, "aqs", "myron", "./box_sn_notself.png")
 # box_season(co_long, "original", "beaco2n", "myron", TRUE, filepath="./box_sn_self.png")
 
-violin_year_season = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath) {
+violin_year_season = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath, ...) {
     plot_data = arrange_plot_data(dataset, noise_filter, meas_sensor, meas_location, self_ref, ref_sensor, ref_location)
     violin_year_season = 
         ggplot(
@@ -294,14 +263,10 @@ violin_year_season = function(dataset, noise_filter, meas_sensor, meas_location,
         geom_violin(na.rm=TRUE) + theme_bw() +
         theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
         # geom_hline(yintercept = 0, color="red") +
-        labs(
-            title="Violin plot faceted by Year and Season.",
-            x = "Sensor type",
-            y = "CO (ppm)",
-        )
+        labs(...)
     ggsave(plot=violin_year_season, filename=filepath)
 }
-violin_season = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath) {
+violin_season = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath, ...) {
     plot_data = arrange_plot_data(dataset, noise_filter, meas_sensor, meas_location, self_ref, ref_sensor, ref_location)
     violin_sn = 
         ggplot(
@@ -315,18 +280,17 @@ violin_season = function(dataset, noise_filter, meas_sensor, meas_location, self
         facet_wrap(~ season) +
         geom_violin() + theme_bw() +
         theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
-        labs(
-            title="Boxplot faceted by season.",
-            x = "Year",
-            y = "CO (ppm)"
-        )
+        labs(...)
     ggsave(plot=violin_sn, filename=filepath)
 }
 # violin_year_season(co_long, "original", "beaco2n", "myron", FALSE, "aqs", "myron", "./violin_yr_sn.png")
 # violin_season(co_long, "original", "beaco2n", "myron", FALSE, "aqs", "myron", "./violin_sn_notself.png")
 # violin_season(co_long, "original", "beaco2n", "myron", TRUE, filepath="./violin_sn_self.png")
 
-deployment_correlation = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath) {
+deployment_correlation = function(
+    dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath,
+    ...
+) {
     plot_data = arrange_deployment_data(dataset, noise_filter, meas_sensor, meas_location, self_ref, ref_sensor, ref_location) 
 
     deployment_plot = 
@@ -344,18 +308,20 @@ deployment_correlation = function(dataset, noise_filter, meas_sensor, meas_locat
         stat_poly_line() + stat_poly_eq() +
         geom_abline(slope=1, intercept=0, color="red") +
         geom_point(alpha=0.05) + 
-        labs(
-            title="Dep plot test"
-            # subtitle="Correlation over time since July 2022"
-        )
-    ggsave(plot=deployment_plot, filename=filepath, width=16, height=22, units="in", dpi=300)
+        labs(...)
+    ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300)
 }
 
-timeseries_deployment_residual = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath) {
+timeseries_deployment_residual = function(
+    dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath,
+    ...
+) {
+    print(head(dataset), width=Inf)
+
     plot_data = arrange_deployment_data(dataset, noise_filter, meas_sensor, meas_location, self_ref, ref_sensor, ref_location) 
 
-    # print(head(plot_data), width=Inf)
-    # browser()
+    print(head(plot_data), width=Inf)
+    browser()
 
     deployment_plot = 
         ggplot(
@@ -372,22 +338,76 @@ timeseries_deployment_residual = function(dataset, noise_filter, meas_sensor, me
         # stat_poly_line() + stat_poly_eq() +
         # geom_abline(slope=1, intercept=0, color="red") +
         geom_line() + 
-        labs(
-            title="Dep plot test"
-            # subtitle="Correlation over time since July 2022"
-        )
+        labs(...)
     ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300)
 }
+violin_deployment_residual = function(
+    dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath,
+    ...
+) {
+    plot_data = arrange_plot_data(dataset, noise_filter, meas_sensor, meas_location, self_ref, ref_sensor, ref_location) 
+
+    deployment_plot = 
+        ggplot(
+            data=plot_data %>% filter(plottype=="resid"),
+            mapping=aes(
+                x=plottype,
+                y=value
+            )
+        ) + 
+        facet_wrap(
+            ~ mos_into_deployment, 
+            ncol=3, 
+        ) +
+        geom_violin() + 
+        labs(...)
+    ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+
+}
+
+deployment_correlation(
+    dataset=co_long,
+    noise_filter="original",
+    meas_sensor="beaco2n",
+    meas_location="myron",
+    self_ref=TRUE,
+    ref_sensor="aqs",
+    ref_location="myron",
+    filepath="./plots/Myron BEACO2N vs AQS correlation by op-month.png",
+    title="Myron BEACO2N vs AQS correlation by op-month",
+    subtitle="Filter=original", 
+    x="AQS CO reading (ppm)",
+    y="BEACO2N CO reading (ppm)"
+)
 
 timeseries_deployment_residual(
     dataset=co_long,
     noise_filter="original",
     meas_sensor="beaco2n",
     meas_location="myron",
-    self_ref=FALSE,
+    self_ref=TRUE,
     ref_sensor="aqs",
     ref_location="myron",
-    filepath="./test_depcor.png"
+    filepath="./plots/Myron BEACO2N vs AQS residual by op-month.png",
+    title="Myron BEACO2N vs AQS residual by op-month",
+    subtitle="Fitler=original",
+    y="CO residual (bcn-aqs ppm)",
+    x="Hours from deployment month start"
+)
+
+violin_deployment_residual(
+    dataset=co_long,
+    noise_filter="original",
+    meas_sensor="beaco2n",
+    meas_location="myron",
+    self_ref=TRUE,
+    ref_sensor="aqs",
+    ref_location="myron",
+    filepath="./plots/Myron BEACO2N vs AQS violin by op-month.png",
+    title="Myron BEACO2N vs AQS residual by op-month",
+    subtitle="Fitler=original",
+    y="CO residual (bcn-aqs ppm)",
+    x="Sensor type"
 )
 
 plot_all = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, basepath) {
@@ -455,28 +475,30 @@ plot_all = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=
     )
 }
 
-beaco2n_sites = 
-    list("myron","zuccolo","wecc","rocklib","silverlake","unitedway","cfs","pha","reservoir","ccri",
-        "mtpleasant","carnevale","martialarts","southprovlib","ecubed","ricollege","blackstone","rochambeaulib","provcollege","prek",
-        "smithhilllib","pema","rockspot","medschool","dpw")
+# DEBUG: issue with blackstone
 
-for(site in beaco2n_sites) {
-    plot_all(
-        dataset=co_long,
-        noise_filter="rolling",
-        meas_sensor="beaco2n",
-        meas_location=site,
-        self_ref=TRUE,
-        basepath=paste0("./plots/ref_beaco2n_co_drift_analysis/self_ref/",site,"/rolling/")
-    )
-    plot_all(
-        dataset=co_long,
-        noise_filter="rolling",
-        meas_sensor="beaco2n",
-        meas_location=site,
-        self_ref=FALSE,
-        ref_sensor="aqs",
-        ref_location="cranston",
-        basepath=paste0("./plots/ref_beaco2n_co_drift_analysis/ext_ref/",site,"/rolling/")
-    )
-}
+# beaco2n_sites = 
+#     list("myron","zuccolo","wecc","rocklib","silverlake","unitedway","cfs","pha","reservoir","ccri",
+#         "mtpleasant","carnevale","martialarts","southprovlib","ecubed","ricollege","blackstone","rochambeaulib","provcollege","prek",
+#         "smithhilllib","pema","rockspot","medschool","dpw")
+
+# for(site in beaco2n_sites) {
+#     plot_all(
+#         dataset=co_long,
+#         noise_filter="rolling",
+#         meas_sensor="beaco2n",
+#         meas_location=site,
+#         self_ref=TRUE,
+#         basepath=paste0("./plots/ref_beaco2n_co_drift_analysis/self_ref/",site,"/rolling/")
+#     )
+#     plot_all(
+#         dataset=co_long,
+#         noise_filter="rolling",
+#         meas_sensor="beaco2n",
+#         meas_location=site,
+#         self_ref=FALSE,
+#         ref_sensor="aqs",
+#         ref_location="cranston",
+#         basepath=paste0("./plots/ref_beaco2n_co_drift_analysis/ext_ref/",site,"/rolling/")
+#     )
+# }
