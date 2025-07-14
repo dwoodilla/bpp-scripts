@@ -375,19 +375,15 @@ histogram_deployment = function(
         ggplot(
             data=plot_data %>% filter(plottype=="meas"),
             mapping=aes(
-                x=value
+                x=value,
+                fill=plottype
             )
         ) + 
         facet_wrap(
             ~ mos_into_deployment, 
             ncol=3, 
         ) +
-        geom_histogram(
-            aes(
-                y=after_stat(count),
-                group=mos_into_deployment
-            )
-        ) +
+        geom_density() +
         labs(...)
     ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300)
 }

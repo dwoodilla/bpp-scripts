@@ -3,7 +3,6 @@ library(sgolay)
 library(ggpmisc)
 library(zoo)
 library(checkmate)
-# source("./import/import_cleaned.R")
 
 season = function(date_vec) {
     m = month(as.Date(date_vec))
@@ -16,10 +15,11 @@ season = function(date_vec) {
         )
     )
 }
+
 hours_into_season = function(date_vec) {
     d = as.POSIXct(date_vec)
     sn = season(date_vec)
-    sn_start = 
+    sn_start =
         case_when(
             sn=="Winter" ~ make_datetime(year=if_else(month(d)==12, year(d), year(d)-1), month=12, day=1),
             sn=="Spring" ~ make_datetime(year=year(d), month=3, day=1),
@@ -30,8 +30,15 @@ hours_into_season = function(date_vec) {
     return(hours_from_sn_start)
 }
 
-
-arrange_plot_data = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location) {
+arrange_season_data = function(
+    dataset, 
+    noise_filter, 
+    meas_sensor, 
+    meas_location, 
+    self_ref=FALSE, 
+    ref_sensor, 
+    ref_location
+) {
     plot_data = dataset %>% filter(sensor==meas_sensor, filter==noise_filter, location==meas_location)
     if (!self_ref) {
         if (missing(ref_sensor) | missing(ref_location)) {
@@ -61,11 +68,11 @@ arrange_plot_data = function(dataset, noise_filter, meas_sensor, meas_location, 
             mutate(value=value_ref) %>%
             select(date, everything(), -month, -day, -hour, -fy_ref_date)
     }
-    plot_data = plot_data %>% 
+    plot_data = plot_data %>%
         left_join(y=ref_data, by="date", suffix=c("_meas","_ref")) %>%
         mutate(
             value_resid = value_meas - value_ref,
-            # Copy remaining data from measurement to residual. 
+            # Copy remaining data from measurement to residual.
             # mos_into_deployment may need to depend on whether both sensors have data or not.
             sensor_resid = "residual",
             sn_year_resid = sn_year_meas,
@@ -93,53 +100,70 @@ arrange_plot_data = function(dataset, noise_filter, meas_sensor, meas_location, 
     return(plot_data %>% filter(!is.na(value)))
 }
 
-arrange_deployment_data = function(dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location) {
-    ret = arrange_plot_data(dataset, noise_filter, meas_sensor, meas_location, self_ref, ref_sensor, ref_location) %>%
+arrange_deployment_data = function(
+    dataset, 
+    noise_filter, 
+    meas_sensor, 
+    meas_location, 
+    self_ref=FALSE, 
+    ref_sensor, 
+    ref_location
+) {
+    ret = arrange_season_data(dataset, noise_filter, meas_sensor, meas_location, self_ref, ref_sensor, ref_location) %>%
         pivot_wider(
             id_cols=c(date, mos_into_deployment, hrs_into_deployment, hrs_into_deployment_month, sn_year, season),
             names_from=plottype,
             values_from=value
-        ) %>%
-        filter(!is.na(ref))
+        )
     return(ret)
 }
 
-elongate_co_bcn_aqs = function(co) {
-    co_long = co %>% 
-        filter(parameter=="co", sensor %in% c("aqs","beaco2n")) %>%
+elongate_df = function(
+    df,
+    parameter_arg,
+    sensors,
+    avg_window = 24,
+    savgol_len = 25,
+    dates_of_deployment
+) {
+    meas_sensor = sensors[1]
+    ref_sensor = sensors[2]
+
+    ret = df %>%
+        filter(parameter == parameter_arg, sensor %in% sensors) %>%
         pivot_wider(
-            id_cols = c("date","location"),
-            names_from = "sensor",
-            values_from = "value",
+            id_cols = c(date, location),
+            names_from = sensor,
+            values_from = value,
             names_prefix = "original_"
         ) %>%
         group_by(location) %>%
         mutate(
-            rolling_aqs = rollmean(original_aqs, k=AVG_WINDOW, align="center", fill=NA),
-            rolling_beaco2n = rollmean(original_beaco2n, k=AVG_WINDOW, align="center", fill=NA), 
-            savgol_aqs = sgolayfilt(original_aqs, n=SAVGOL_FILTER_LEN, p=4),
-            savgol_beaco2n = sgolayfilt(original_beaco2n, n=SAVGOL_FILTER_LEN, p=4)
+            !!paste0("rolling_", meas_sensor) := rollmean(get(paste0("original_", meas_sensor)), k = avg_window, align = "center", fill = NA),
+            !!paste0("rolling_", ref_sensor) := rollmean(get(paste0("original_", ref_sensor)), k = avg_window, align = "center", fill = NA),
+            !!paste0("savgol_", meas_sensor) := sgolayfilt(get(paste0("original_", meas_sensor)), n = savgol_len, p = 4),
+            !!paste0("savgol_", ref_sensor) := sgolayfilt(get(paste0("original_", ref_sensor)), n = savgol_len, p = 4)
         ) %>%
         ungroup() %>%
         mutate(
-            original_res = original_beaco2n - original_aqs,
-            rolling_res = rolling_beaco2n - rolling_aqs,
-            savgol_res = savgol_beaco2n - savgol_aqs
+            original_res = .data[[paste0("original_", meas_sensor)]] - .data[[paste0("original_", ref_sensor)]],
+            rolling_res  = .data[[paste0("rolling_",  meas_sensor)]] - .data[[paste0("rolling_",  ref_sensor)]],
+            savgol_res   = .data[[paste0("savgol_",   meas_sensor)]] - .data[[paste0("savgol_",   ref_sensor)]]
         ) %>%
         pivot_longer(
             cols = -c(date, location),
             names_to = c("filter", "sensor"),
             names_pattern = "(original|rolling|savgol)_?(.*)",
             values_to = "value"
-        ) %>% 
-        semi_join( # Remove sensor/location artifacts
-            y = co %>% select(sensor, location) %>% distinct(), 
+        ) %>%
+        semi_join(
+            y = df %>% select(sensor, location) %>% distinct(),
             by = c("sensor", "location")
         ) %>%
         mutate(
-            sn_year=factor(if_else(month(date)==12, year(date)+1, year(date)), levels=2018:2030),
-            season=factor(season(date), levels=c("Winter", "Spring", "Summer", "Fall")),
-            hours_into_sn=hours_into_season(date),
+            sn_year = factor(if_else(month(date) == 12, year(date) + 1, year(date)), levels = 2018:2030),
+            season = factor(season(date), levels = c("Winter", "Spring", "Summer", "Fall")),
+            hours_into_sn = hours_into_season(date)
         ) %>%
         filter(!is.na(value)) %>%
         left_join(dates_of_deployment, by = c("sensor", "location")) %>%
@@ -152,67 +176,230 @@ elongate_co_bcn_aqs = function(co) {
                 tz="UTC"
             ) %/% hours(1)
         )
-    return(co_long)
+    return(ret)
 }
 
-elongate_pm_bcn_qaq = function(pm) {
-    pm_long = pm %>% 
-        filter(parameter %in% c("pm25","pm1","pm10"), sensor %in% c("quantaq", "beaco2n")) %>%
-        pivot_wider(
-            id_cols = c("date","location"),
-            names_from = "sensor",
-            values_from = "value",
-            names_prefix = "original_"
-        ) %>%
-        group_by(location) %>%
-        mutate(
-            rolling_quantaq = rollmean(original_quantaq, k=AVG_WINDOW, align="center", fill=NA),
-            rolling_beaco2n = rollmean(original_beaco2n, k=AVG_WINDOW, align="center", fill=NA), 
-            savgol_quantaq = sgolayfilt(original_quantaq, n=SAVGOL_FILTER_LEN, p=4),
-            savgol_beaco2n = sgolayfilt(original_beaco2n, n=SAVGOL_FILTER_LEN, p=4)
-        ) %>%
-        ungroup() %>%
-        mutate(
-            original_res = original_beaco2n - original_quantaq,
-            rolling_res = rolling_beaco2n - rolling_quantaq,
-            savgol_res = savgol_beaco2n - savgol_quantaq
-        ) %>%
-        pivot_longer(
-            cols = -c(date, location),
-            names_to = c("filter", "sensor"),
-            names_pattern = "(original|rolling|savgol)_?(.*)",
-            values_to = "value"
-        ) %>% 
-        semi_join( # Remove sensor/location artifacts
-            y = pm %>% select(sensor, location) %>% distinct(), 
-            by = c("sensor", "location")
-        ) %>%
-        mutate(
-            sn_year=factor(if_else(month(date)==12, year(date)+1, year(date)), levels=2018:2030),
-            season=factor(season(date), levels=c("Winter", "Spring", "Summer", "Fall")),
-            hours_into_sn=hours_into_season(date),
-        ) %>%
+dates_of_deployment = function(
+    df,
+    parameter_arg,
+    sensors
+) {
+    dates_of_deployment = df %>%
+        filter(parameter == parameter_arg, sensor %in% sensors) %>%
+        arrange(date) %>%
+        group_by(sensor, location) %>%
         filter(!is.na(value)) %>%
-        left_join(dates_of_deployment, by = c("sensor", "location")) %>%
-        mutate(
-            mos_into_deployment = interval(deployment_start, date) %/% months(1),
-            hrs_into_deployment = interval(deployment_start, date) %/% hours(1)
-        ) %>%
-        select(everything(), -deployment_start)
-    return(pm_long)
+        slice(1) %>%
+        ungroup() %>%
+        select(sensor, location, deployment_start=date)
 }
 
-dates_of_deployment_co_bcn_aqs = function(co) {
-
+#' Plot timeseries of measurement and reference sensor, faceted by season. 
+#' @param `season_data` must be in long format and contain both measurement and reference data.
+timeseries_year_season = function(
+    season_data, 
+    filepath, 
+    ...
+) {
+    ts_year_season = 
+        ggplot(
+            data=season_data %>% filter(!is.na(value)), 
+            mapping=aes(x=hours_into_sn, y=value, color=plottype) 
+        ) + 
+        facet_grid(rows=vars(sn_year), cols=vars(season)) +
+        geom_line(na.rm=TRUE) + theme_bw() +
+        theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
+        geom_hline(yintercept = 0, color="red") +
+        labs(...)
+    ggsave(plot=ts_year_season, filename=filepath, width=8.5, height=11, units="in", dpi=300)
 }
 
-dates_of_deployment_pm_bcn_qaq = function(pm) {
-    dates_of_deployment = pm %>%
-    filter(parameter %in% c("pm25","pm1","pm10"), sensor %in% c("quantaq", "beaco2n")) %>%
-    arrange(date) %>%
-    group_by(sensor, location) %>%
-    filter(!is.na(value)) %>%
-    slice(1) %>%
-    ungroup() %>%
-    select(sensor, location, deployment_start=date)
+timeseries_season = function(
+    season_data, 
+    filepath, 
+    ...
+) {
+    ts_season = 
+        ggplot(
+            data=season_data, 
+            mapping=aes(
+                x=hours_into_sn,
+                y=value,
+                color=sn_year, 
+                linetype=sensor
+            )
+        ) + 
+        facet_wrap(~ season) +
+        geom_line() + theme_bw() +
+        theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
+        geom_hline(yintercept = 0, color="red") +
+        labs(...)
+    ggsave(plot=ts_season, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+}
+
+box_year_season = function(
+    season_data, 
+    filepath, 
+    ...
+) {
+    box_year_season = 
+        ggplot(
+            data=season_data %>% filter(!is.na(value)), 
+            mapping=aes(x=sensor, y=value, color=plottype) 
+        ) + 
+        facet_grid(rows=vars(sn_year), cols=vars(season)) +
+        geom_boxplot(na.rm=TRUE) + theme_bw() +
+        theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
+        # geom_hline(yintercept = 0, color="red") +
+        labs(...)
+    ggsave(plot=box_year_season, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+}
+
+box_season = function(
+    season_data, 
+    filepath,
+    ...
+) {
+    box_sn = 
+        ggplot(
+            data=season_data,
+            mapping=aes(
+                x=sn_year, 
+                y=value,
+                fill=sensor,
+            )
+        ) + 
+        facet_wrap(~ season) +
+        geom_boxplot() + theme_bw() +
+        theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
+        labs(...)
+    ggsave(plot=box_sn, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+}
+
+violin_year_season = function(
+    season_data, 
+    filepath, 
+    ...
+) {
+    violin_year_season = 
+        ggplot(
+            data=season_data, 
+            mapping=aes(x=sensor, y=value, color=plottype) 
+        ) + 
+        facet_grid(rows=vars(sn_year), cols=vars(season)) +
+        geom_violin(na.rm=TRUE) + theme_bw() +
+        theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
+        labs(...)
+    ggsave(plot=violin_year_season, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+}
+
+violin_season = function(
+    season_data, 
+    filepath, 
+    ...
+) {
+    violin_sn = 
+        ggplot(
+            data=season_data, # Residual scaled poorly on plot
+            mapping=aes(
+                x=sn_year, 
+                y=value,
+                fill=sensor,
+            )
+        ) + 
+        facet_wrap(~ season) +
+        geom_violin() + theme_bw() +
+        theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
+        labs(...)
+    ggsave(plot=violin_sn, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+}
+
+deployment_correlation = function(
+    deployment_data, 
+    filepath,
+    ...
+) {
+    deployment_plot = 
+        ggplot(
+            data=deployment_data,
+            mapping=aes(
+                x=ref,
+                y=meas
+            )
+        ) + 
+        facet_wrap(
+            ~ mos_into_deployment, 
+            ncol=3, 
+        ) +
+        stat_poly_line() + stat_poly_eq() +
+        geom_abline(slope=1, intercept=0, color="red") +
+        geom_point(alpha=0.05) + 
+        labs(...)
+    ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+}
+
+timeseries_deployment_residual = function(
+    deployment_data, 
+    filepath,
+    ...
+) {
+    deployment_plot = 
+        ggplot(
+            data=deployment_data,
+            mapping=aes(
+                x=hrs_into_deployment_month,
+                y=resid
+            )
+        ) + 
+        facet_wrap(
+            ~ mos_into_deployment, 
+            ncol=3, 
+        ) +
+        geom_line() + 
+        labs(...)
+    ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+}
+
+violin_deployment_residual = function(
+    season_data, 
+    filepath,
+    ...
+) {
+    deployment_plot = 
+        ggplot(
+            data=season_data %>% filter(plottype=="resid"),
+            mapping=aes(
+                x=plottype,
+                y=value
+            )
+        ) + 
+        facet_wrap(
+            ~ mos_into_deployment, 
+            ncol=3, 
+        ) +
+        geom_violin() + 
+        labs(...)
+    ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+}
+
+histogram_deployment = function(
+    season_data, 
+    filepath,
+    ...
+) {
+    deployment_plot = 
+        ggplot(
+            data=season_data %>% filter(plottype=="meas"),
+            mapping=aes(
+                x=value,
+                fill=plottype
+            )
+        ) + 
+        facet_wrap(
+            ~ mos_into_deployment, 
+            ncol=3, 
+        ) +
+        geom_density() +
+        labs(...)
+    ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300)
 }
