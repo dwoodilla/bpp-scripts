@@ -365,7 +365,7 @@ violin_deployment_residual = function(
 
 }
 
-histogram_deployment = function(
+deployment_density = function(
     dataset, noise_filter, meas_sensor, meas_location, self_ref=FALSE, ref_sensor, ref_location, filepath,
     ...
 ) {
@@ -388,7 +388,7 @@ histogram_deployment = function(
     ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300)
 }
 
-histogram_deployment(
+deployment_density(
     dataset=co_long,
     noise_filter="original",
     meas_sensor="beaco2n",

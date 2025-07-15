@@ -3,6 +3,9 @@ library(sgolay)
 library(ggpmisc)
 library(zoo)
 library(checkmate)
+library(moments) # skew, kurtosis
+library(philentropy) # KL
+library(statip) # Hellinger
 
 season = function(date_vec) {
     m = month(as.Date(date_vec))
@@ -382,14 +385,14 @@ violin_deployment_residual = function(
     ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300)
 }
 
-histogram_deployment = function(
+deployment_density = function(
     season_data, 
     filepath,
     ...
 ) {
     deployment_plot = 
         ggplot(
-            data=season_data %>% filter(plottype=="meas"),
+            data=season_data %>% filter(plottype %in% c("meas","ref")),
             mapping=aes(
                 x=value,
                 fill=plottype
@@ -398,8 +401,54 @@ histogram_deployment = function(
         facet_wrap(
             ~ mos_into_deployment, 
             ncol=3, 
+            scales="free_y"
         ) +
-        geom_density() +
+        geom_density(alpha=0.5) +
         labs(...)
     ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+}
+
+deployment_density_stats = function(
+    season_data,
+    est_n=512
+) {
+    stats_by_monthtype = season_data %>%
+        filter(plottype %in% c("meas","ref")) %>%
+        group_by(mos_into_deployment, plottype) %>%
+        summarize(
+            mean = mean(value, na.rm=TRUE), 
+            sd = sd(value, na.rm=TRUE),
+            kurt = kurtosis(value, na.rm=TRUE),
+            skew = skewness(value, na.rm=TRUE)
+        )
+    divergence_by_mo = 
+        season_data %>%
+        filter(plottype %in% c("meas","ref")) %>%
+        group_by(mos_into_deployment, plottype) %>%
+        nest(data = c(value)) %>%
+        pivot_wider(names_from=plottype, values_from=data) %>%
+        mutate( 
+            density = map2(meas, ref, function(m,r) {
+                values = c(m$value, r$value)
+                est_grid = seq(
+                    min(values, na.rm=TRUE), 
+                    max(values, na.rm=TRUE), 
+                    length.out=est_n
+                )
+                est_min = min(est_grid)
+                est_max = max(est_grid)
+                dm = density(m$value, from=est_min, to=est_max, n=est_n)
+                dr = density(r$value, from=est_min, to=est_max, n=est_n)
+                return(tibble(
+                    x=grid, 
+                    p=dm$y/sum(dm$y),
+                    q=dr$y/sum(dr$y)
+                ))
+            }),
+            kl_div = map_dbl(density, distance(
+                x=density, 
+                method="kullback-leibler"
+            ))
+        )
+    return(divergence_by_mo)
 }
