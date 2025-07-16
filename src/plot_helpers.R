@@ -4,8 +4,7 @@ library(ggpmisc)
 library(zoo)
 library(checkmate)
 library(moments) # skew, kurtosis
-library(philentropy) # KL
-# library(statip) # Hellinger
+library(philentropy) # divergences
 
 season = function(date_vec) {
 	m = month(as.Date(date_vec))
@@ -422,11 +421,11 @@ deployment_density_stats = function(
 			skewness = skewness(value, na.rm=TRUE)
 		) %>%
 		ungroup() %>%
-		pivot_wider(
-			names_from=plottype,
-			values_from=c(mean, sd, kurtosis, skewness)
+		pivot_longer(
+			cols=-c(mos_into_deployment, plottype),
+			names_to="parameter",
+			values_to="value"
 		)
-	print(stats_by_month)
 	divergence_by_month = 
 		season_data %>%
 		filter(plottype %in% c("meas","ref")) %>%
@@ -477,12 +476,26 @@ deployment_density_stats = function(
 					mute.message=TRUE
 				)
 			})
+		) %>%
+		rename(meas_obs=meas, ref_obs=ref, pdf=density) %>%
+		pivot_longer(
+			cols=-mos_into_deployment,
+			names_to="parameter",
+			values_to="value"
 		)
 	ret = full_join(
 		stats_by_month, 
 		divergence_by_month, 
 		by="mos_into_deployment", 
-		relationship="one-to-one"
-	)
+		relationship="one-to-many"
+	) 
 	return(ret)
+}
+
+divergence_line_plot = function(
+	deployment_density_stats, 
+	filepath,
+	...
+) {
+
 }
