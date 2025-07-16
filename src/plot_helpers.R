@@ -408,8 +408,7 @@ deployment_density = function(
 }
 
 deployment_density_stats = function(
-	season_data,
-	est_n=512
+	season_data
 ) {
 	stats_by_month = season_data %>%
 		filter(plottype %in% c("meas","ref")) %>%
@@ -420,12 +419,19 @@ deployment_density_stats = function(
 			kurtosis = kurtosis(value, na.rm=TRUE),
 			skewness = skewness(value, na.rm=TRUE)
 		) %>%
-		ungroup() %>%
-		pivot_longer(
-			cols=-c(mos_into_deployment, plottype),
-			names_to="parameter",
-			values_to="value"
+		pivot_wider(
+			id_cols=mos_into_deployment,
+			names_from=plottype,
+			values_from=c(mean,sd,kurtosis,skewness)
 		)
+	print(head(stats_by_month))
+		# %>%
+		# ungroup() %>%
+		# pivot_longer(
+		# 	cols=c(mean,sd,kurtosis,skewness),
+		# 	names_to="parameter",
+		# 	values_to="value"
+		# )
 	divergence_by_month = 
 		season_data %>%
 		filter(plottype %in% c("meas","ref")) %>%
@@ -434,11 +440,12 @@ deployment_density_stats = function(
 		filter(if_all(c(meas, ref), ~ !is.na(.))) %>%
 		pivot_longer(cols=c(meas, ref), names_to="plottype",values_to="value") %>%
 		group_by(mos_into_deployment, plottype) %>%
-		select(mos_into_deployment, plottype, value) %>%
+		select(-date) %>%
 		nest(data = c(value)) %>%
 		pivot_wider(names_from=plottype, values_from=data) %>%
 		mutate( 
 			density = map2(meas, ref, function(m,r) {
+				est_n = length(m$value)
 				values = c(m$value, r$value)
 				est_grid = seq(
 					min(values, na.rm=TRUE), 
@@ -451,49 +458,59 @@ deployment_density_stats = function(
 				dr = density(r$value, from=est_min, to=est_max, n=est_n, na.rm=TRUE)
 				return(tibble(
 					x=est_grid, 
-					p=dm$y/sum(dm$y),
-					q=dr$y/sum(dr$y)
+					m=dm$y/sum(dm$y),
+					r=dr$y/sum(dr$y)
 				))
 			}),
 		  	KL = map_dbl(density, ~ {
 				distance(
-					x=t(as.matrix(select(.x, p, q))), 
+					x=t(as.matrix(select(.x, m, r))), 
 					method="kullback-leibler",
 					mute.message=TRUE
 				)
 			}),
 			hellinger = map_dbl(density, ~ {
 				distance(
-					x=t(as.matrix(select(.x, p, q))), 
+					x=t(as.matrix(select(.x, m, r))), 
 					method="hellinger",
 					mute.message=TRUE
 				)
 			}),
 			euclidean = map_dbl(density, ~ {
 				distance(
-					x=t(as.matrix(select(.x, p, q))), 
+					x=t(as.matrix(select(.x, m, r))), 
 					method="euclidean",
 					mute.message=TRUE
 				)
-			})
+			}),
+			pdf_resolution = map_dbl(density, ~ nrow(.x))
 		) %>%
-		rename(meas_obs=meas, ref_obs=ref, pdf=density) %>%
+		rename(obs_meas=meas, obs_ref=ref, pdf=density)
+	stats_by_month = 
+		stats_by_month %>% 
+		left_join(
+			y=divergence_by_month %>% select(-c(obs_meas,obs_ref,pdf)), 
+			by=join_by(mos_into_deployment),
+			relationship="one-to-one"
+		) %>%
 		pivot_longer(
-			cols=-mos_into_deployment,
-			names_to="parameter",
+			cols=matches("^(mean|sd|kurtosis|skewness|KL|hellinger|euclidean)(?:_(meas|ref))?$"),
+			names_pattern="^(mean|sd|kurtosis|skewness|KL|hellinger|euclidean)(?:_(meas|ref))?$",
+			names_to=c("statistic","plottype"),
 			values_to="value"
-		)
-	ret = full_join(
-		stats_by_month, 
-		divergence_by_month, 
-		by="mos_into_deployment", 
-		relationship="one-to-many"
-	) 
-	return(ret)
+		) %>%
+		mutate(plottype=na_if(plottype, ""))
+	divergence_by_month = select(
+		.data=divergence_by_month,
+		c(mos_into_deployment, obs_meas, obs_ref, pdf, pdf_resolution)
+	)
+
+	return(list(stats_by_month, divergence_by_month))
 }
 
 divergence_line_plot = function(
-	deployment_density_stats, 
+	stats, 
+	divergences,
 	filepath,
 	...
 ) {

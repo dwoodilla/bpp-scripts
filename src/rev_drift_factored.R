@@ -32,16 +32,17 @@ season_data = arrange_season_data(
     ref_location="myron"
 )
 
-deployment_density(
-    season_data=season_data,
-    filepath="./plots/hist_test.png",
-    title="Distributions by Operating Month",
-    subtitle="BEACO2N vs AQS at Myron (filter=original)", 
-    x="[CO] (ppm)",
-    y=TeX("$\\frac{d (Cumulative\\_density)}{d[CO]}=pdf$")
-)
+# deployment_density(
+#     season_data=season_data,
+#     filepath="./plots/hist_test.png",
+#     title="Distributions by Operating Month",
+#     subtitle="BEACO2N vs AQS at Myron (filter=original)", 
+#     x="[CO] (ppm)",
+#     y=TeX("$\\frac{d (Cumulative\\_density)}{d[CO]}=pdf$")
+# )
 dens = deployment_density_stats(
     season_data=season_data
 )
-print(dens, width=Inf, n=Inf)
+print((dens[[1]]), width=Inf, n=20)
+print(head(dens[[2]]), width=Inf, n=Inf)
 
