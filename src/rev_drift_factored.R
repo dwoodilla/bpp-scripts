@@ -27,19 +27,10 @@ season_data = arrange_season_data(
     noise_filter="original",
     meas_sensor="beaco2n",
     meas_location="myron",
-    self_ref=FALSE,
+    self_ref=TRUE,
     ref_sensor="aqs",
     ref_location="myron"
 )
-# deployment_data = arrange_deployment_data(
-#     dataset=co_long,
-#     noise_filter="original",
-#     meas_sensor="beaco2n",
-#     meas_location="myron",
-#     self_ref=FALSE,
-#     ref_sensor="aqs",
-#     ref_location="myron"
-# )
 
 deployment_density(
     season_data=season_data,
@@ -54,29 +45,3 @@ dens = deployment_density_stats(
 )
 print(dens, width=Inf, n=Inf)
 
-# deployment_correlation(
-#     deployment_data=deployment_data,
-#     filepath="./plots/Myron BEACO2N vs AQS correlation by op-month.png",
-#     title="Myron BEACO2N vs AQS correlation by op-month",
-#     subtitle="Filter=original", 
-#     x="AQS CO reading (ppm)",
-#     y="BEACO2N CO reading (ppm)"
-# )
-
-# timeseries_deployment_residual(
-#     deployment_data=deployment_data,
-#     filepath="./plots/Myron BEACO2N vs AQS residual by op-month.png",
-#     title="Myron BEACO2N vs AQS residual by op-month",
-#     subtitle="Fitler=original",
-#     y="CO residual (bcn-aqs ppm)",
-#     x="Hours from deployment month start"
-# )
-
-# violin_deployment_residual(
-#     season_data=season_data,
-#     filepath="./plots/Myron BEACO2N vs AQS violin by op-month.png",
-#     title="Myron BEACO2N vs AQS residual by op-month",
-#     subtitle="Fitler=original",
-#     y="CO residual (bcn-aqs ppm)",
-#     x="Sensor type"
-# )
