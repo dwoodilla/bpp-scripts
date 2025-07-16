@@ -424,14 +424,6 @@ deployment_density_stats = function(
 			names_from=plottype,
 			values_from=c(mean,sd,kurtosis,skewness)
 		)
-	print(head(stats_by_month))
-		# %>%
-		# ungroup() %>%
-		# pivot_longer(
-		# 	cols=c(mean,sd,kurtosis,skewness),
-		# 	names_to="parameter",
-		# 	values_to="value"
-		# )
 	divergence_by_month = 
 		season_data %>%
 		filter(plottype %in% c("meas","ref")) %>%
@@ -509,10 +501,35 @@ deployment_density_stats = function(
 }
 
 divergence_line_plot = function(
-	stats, 
-	divergences,
+	pdf_stats,
 	filepath,
+	self_ref=FALSE,
 	...
 ) {
+	if (self_ref) pdf_stats = filter(.data=pdf_stats, mos_into_deployment>=12)
+	else pdf_stats = filter(.data=pdf_stats, !is.na(value))
 
+	divergences_plot = 
+		ggplot(
+			data=pdf_stats %>% filter(
+				statistic %in% c("KL","hellinger","euclidean")
+			),
+			mapping=aes(
+				x=mos_into_deployment,
+				y=value,
+				shape=statistic,
+				color=statistic
+			)
+		) +
+		geom_line() + theme_bw() +
+		labs(...)
+
+	ggsave(
+		plot=divergences_plot, 
+		filename=filepath, 
+		width=5, 
+		height=5, 
+		units="in", 
+		dpi=300
+	)
 }

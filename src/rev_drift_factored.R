@@ -4,6 +4,8 @@ library(ggpmisc)
 library(zoo)
 library(checkmate)
 library(latex2exp)
+library(gridExtra)
+
 source("./import/import_cleaned.R")
 source("./src/plot_helpers.R")
 
@@ -22,27 +24,72 @@ if (file.exists("./clean_data/beaco2n_drift_long.csv")) {
     write_csv(x=co_long, file="./clean_data/beaco2n_drift_long.csv", col_names=TRUE)
 }
 
+self_ref=FALSE
 season_data = arrange_season_data(
     dataset=co_long,
     noise_filter="original",
     meas_sensor="beaco2n",
     meas_location="myron",
-    self_ref=TRUE,
+    self_ref=self_ref,
     ref_sensor="aqs",
     ref_location="myron"
 )
-
-# deployment_density(
-#     season_data=season_data,
-#     filepath="./plots/hist_test.png",
-#     title="Distributions by Operating Month",
-#     subtitle="BEACO2N vs AQS at Myron (filter=original)", 
-#     x="[CO] (ppm)",
-#     y=TeX("$\\frac{d (Cumulative\\_density)}{d[CO]}=pdf$")
-# )
-dens = deployment_density_stats(
-    season_data=season_data
+deployment_density(
+    season_data=season_data,
+    filepath="./plots/myron_pdfs_ext.png",
+    title="Distributions by Operating Month",
+    subtitle="BEACO2N vs AQS at Myron (filter=original)", 
+    x="[CO] (ppm)",
+    y=TeX("$\\frac{d (Cumulative\\_density)}{d[CO]}=pdf$")
 )
-print((dens[[1]]), width=Inf, n=20)
-print(head(dens[[2]]), width=Inf, n=Inf)
+dens = deployment_density_stats(season_data=season_data)
+divergence_line_plot(
+    dens[[1]], 
+    filepath="./plots/myron_divs_ext.png",
+    self_ref=self_ref
+)
+png(filename="./plots/myron_divtab_ext.png", width=8.5, height=11, units="in", res=300)
+grid.table(dens[[1]] %>% 
+    filter(statistic %in% c("KL", "hellinger", "euclidean")) %>%
+    pivot_wider(
+        names_from="statistic",
+        values_from="value"
+    ) %>%
+    select(-c(pdf_resolution, plottype)) %>%
+    drop_na(c("KL","hellinger","euclidean"))
+)
+dev.off()
 
+self_ref=TRUE
+season_data = arrange_season_data(
+    dataset=co_long,
+    noise_filter="original",
+    meas_sensor="beaco2n",
+    meas_location="myron",
+    self_ref=self_ref
+)
+deployment_density(
+    season_data=season_data,
+    filepath="./plots/myron_pdfs_self.png",
+    title="Distributions by Operating Month",
+    subtitle="BEACO2N vs self (filter=original)", 
+    x="[CO] (ppm)",
+    y=TeX("$\\frac{d (Cumulative\\_density)}{d[CO]}=pdf$")
+)
+dens = deployment_density_stats(season_data=season_data)
+divergence_line_plot(
+    dens[[1]], 
+    filepath="./plots/myron_divs_self.png",
+    self_ref=self_ref
+)
+
+png(filename="./plots/myron_divtab_self.png", width=8.5, height=11, units="in", res=300)
+grid.table(dens[[1]] %>% 
+    filter(statistic %in% c("KL", "hellinger", "euclidean")) %>%
+    pivot_wider(
+        names_from="statistic",
+        values_from="value"
+    ) %>%
+    select(-c(pdf_resolution, plottype))
+)
+dev.off()
