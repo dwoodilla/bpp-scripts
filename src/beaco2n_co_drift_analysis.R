@@ -14,6 +14,58 @@ import = import_cleaned()
 
 unlink(c("./plots/*.png", "./plots/*.png"), expand=TRUE) # Hit Ctrl-Enter on this line to clear temporary files.
 
+# combined_df = read.csv("./clean_data/all_co_temp_rh_2022.csv")
+# combined_df$date = as.POSIXct(combined_df$date, tz="UTC")
+# tidy_combined_df = combined_df %>% pivot_longer( # Convert combined_df to tidy format
+#     cols = -date,
+#     names_to = c("parameter","sensor","location"),
+#     values_to = "value",
+#     names_pattern = "([^_]+)_([^_]+)_(.+)"
+# )
+
+tidy_combined_df = import_co()
+
+# BEACO2N DRIFT:
+# 1) Plot BEACO2N vs AQS residual over time (Myron): residual, rolling avg residual, stat tests for residual.
+# 2) Plot BEACO2N DPW vs AQS Cranston: residual, rolling avg residual, stat tests
+myron_df_wide = tidy_combined_df %>% 
+    filter(location=="myron", parameter=="co", sensor %in% c("aqs","beaco2n")) %>%
+    pivot_wider(
+        id_cols = "date",
+        names_from = "sensor",
+        values_from = "value"
+    ) %>%
+    filter(if_all(c(aqs, beaco2n), ~ !is.na(.))) # Choose rows s.t. no measurement entry is NA
+
+myron_rolling_wide = myron_df_wide %>%
+    mutate(aqs = rollmean(aqs, k=AVG_WINDOW, align="center", fill=NA), 
+           beaco2n = rollmean(beaco2n, k=AVG_WINDOW, align="center", fill=NA)) %>%
+    mutate(res = beaco2n - aqs)
+
+myron_savgol_wide = myron_df_wide %>%
+    mutate(aqs = savgol(aqs, fl=SAVGOL_FILTER_LEN), beaco2n = savgol(beaco2n, fl=SAVGOL_FILTER_LEN)) %>%
+    mutate(res = beaco2n - aqs)
+
+myron_df_long = myron_df_wide %>% 
+    mutate(res = beaco2n - aqs) %>%
+    pivot_longer(
+        cols = -date,
+        names_to = "sensor",
+        values_to = "value"
+    )
+myron_rolling_long = myron_rolling_wide %>%
+    pivot_longer(
+        cols=-date,
+        names_to = "sensor",
+        values_to = "value"
+    )
+myron_savgol_long = myron_savgol_wide %>%
+    pivot_longer(
+        cols=-date,
+        names_to = "sensor",
+        values_to = "value"
+    )
+
 season = function(vec) {
     m = month(as.Date(vec))
     return(
@@ -40,18 +92,11 @@ count_from_season_start = function(vec) {
     return(days_from_sn_start)
 }
 
-# Assumes that dates in co_dataset are already ordered
-months_into_deployment = function(date, location_arg, sensor_arg, co_dataset) {
-    dates_deployed = co_dataset %>%
-        filter(location==location_arg, sensor==sensor_arg, !is.na(value)) 
-    dates_deployed = dates_deployed %>% select(date)
-    first_date = pull(dates_deployed, date)[1]
-    date = ymd_hms(format(date, "%F %T"), tz="UTC")
-    return(interval(first_date, date) %/% months(1))
+mos_from_deployment_start_fn = function(vec) {
+    date = ymd_hms(format(vec, "%F %T"), tz="UTC")
+    dp_start <- make_datetime(year = 2022, month = 7, day = 1, tz = "UTC")
+    return(interval(dp_start, date) %/% months(1))
 }
-
-
-
 
 plot_graphs = function(dataset, dataset_name) {
     year_by_season_ts = 
