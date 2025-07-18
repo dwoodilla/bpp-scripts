@@ -6,42 +6,39 @@ library(checkmate)
 library(latex2exp)
 library(gridExtra)
 
-source("./import/import_cleaned.R")
+source("./clean/import_cleaned.R")
 source("./src/plot_helpers.R")
 
 AVG_WINDOW = 24
 SAVGOL_FILTER_LEN = 24+1
 
-elongate_wrapper = function(attempt_read = TRUE) {
+co_elongate_wrapper = function(attempt_read = TRUE) {
     if (attempt_read & file.exists("./clean_data/beaco2n_drift_long.csv")) {
         co_long = read_csv("./clean_data/beaco2n_drift_long.csv")
     } else {
-        co_long = elongate_df(df=co, parameter_arg="co", sensors=c("beaco2n","aqs"), dates_of_deployment=dates_of_deployment)
+        co_long = elongate_df(df=co, parameter_arg="co", sensors=c("beaco2n","aqs"), dates_of_deployment=co_dod)
         write_csv(x=co_long, file="./clean_data/beaco2n_drift_long.csv", col_names=TRUE)
     }
 }
 
 co = import_co()
-dates_of_deployment = dates_of_deployment(df=co, parameter_arg="co", sensors=c("beaco2n","aqs"))
+co_dod = dates_of_deployment(df=co, parameter_arg="co", sensors=c("beaco2n","aqs"))
 co = co %>% 
     pivot_wider(
         names_from="parameter",
         values_from="value"
     ) %>%
-    filter(is.na(temp) | temp < 30) %>%
+    filter(is.na(temp) | temp < 30, is.na(rh) | rh < 75) %>%
     pivot_longer(
         cols=c("co","temp","rh"),
         names_to = "parameter",
         values_to="value"
     )
 
-co_long = tibble()
-co_long = elongate_wrapper(TRUE)
-
-pm=import_pm()
+co_long = co_elongate_wrapper(TRUE)
 
 self_ref=FALSE
-co_seasonated = arrange_season_data(
+co_plottable = arrange_season_data(
     dataset=co_long,
     noise_filter="original",
     meas_sensor="beaco2n",
@@ -51,14 +48,14 @@ co_seasonated = arrange_season_data(
     ref_location="myron"
 )
 deployment_density(
-    season_data=co_seasonated,
+    season_data=co_plottable,
     filepath="./plots/myron_pdfs_ext.png",
     title="Distributions by Operating Month",
     subtitle="BEACO2N vs AQS at Myron (filter=original)", 
     x="[CO] (ppm)",
     y=TeX("$\\frac{d (Cumulative\\_density)}{d[CO]}=pdf$")
 )
-dens = deployment_density_stats(season_data=co_seasonated)
+dens = deployment_density_stats(season_data=co_plottable)
 divergence_line_plot(
     dens[[1]], 
     filepath="./plots/myron_divs_ext.png",
@@ -75,6 +72,7 @@ grid.table(dens[[1]] %>%
     drop_na(c("KL","hellinger","euclidean"))
 )
 dev.off()
+
 
 self_ref=TRUE
 season_data = arrange_season_data(

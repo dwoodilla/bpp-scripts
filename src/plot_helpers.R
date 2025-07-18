@@ -286,9 +286,9 @@ violin_year_season = function(
 	violin_year_season = 
 		ggplot(
 			data=season_data, 
-			mapping=aes(x=sensor, y=value, color=plottype) 
+			mapping=aes(x=sensor, y=value, fill=plottype) 
 		) + 
-		facet_grid(rows=vars(sn_year), cols=vars(season)) +
+		facet_grid(rows=vars(sn_year), cols=vars(season), scales="free_y") +
 		geom_violin(na.rm=TRUE) + theme_bw() +
 		theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
 		labs(...)
@@ -309,7 +309,7 @@ violin_season = function(
 				fill=sensor,
 			)
 		) + 
-		facet_wrap(~ season) +
+		facet_wrap(~ season, scales="free_y") +
 		geom_violin() + theme_bw() +
 		theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
 		labs(...)
@@ -455,7 +455,6 @@ deployment_density_labeller = function(season_data, dep_months) {
 		) %>% 
 		select(mos_into_deployment, label)
 	vec = t(setNames(label_stats$label, label_stats$mos_into_deployment))
-	print(head(vec))
 	return(vec)
 }
 
