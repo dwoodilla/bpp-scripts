@@ -400,11 +400,63 @@ deployment_density = function(
 		facet_wrap(
 			~ mos_into_deployment, 
 			ncol=3, 
-			scales="free_y"
+			scales="free_y",
+			labeller = labeller(
+				mos_into_deployment = function(x) {
+					return(deployment_density_labeller(
+						season_data=season_data, 
+						dep_months=x
+					))
+				}
+			)
+			
+			# function(x) {return(deployment_density_labeller(
+			# 	season_data=season_data, 
+			# 	dep_months=x
+			# ))}
 		) +
 		geom_density(alpha=0.5) +
 		labs(...)
 	ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+}
+
+deployment_density_labeller = function(season_data, dep_months) {
+	label_stats = season_data %>%
+		select(plottype, mos_into_deployment, date) %>%
+		group_by(plottype, mos_into_deployment) %>%
+		summarize(
+			n=n(),
+			mo_min = month(min(date), label=TRUE, abbr=TRUE),
+			mo_max = month(max(date), label=TRUE, abbr=TRUE),
+			yr_min = year(min(date)),
+			yr_max = year(max(date))
+		) %>%
+		ungroup() %>%
+		pivot_wider(
+			names_from="plottype",
+			values_from="n"
+		) %>%
+		mutate(
+			label= if_else(
+				yr_min==yr_max,
+				paste0(
+					mos_into_deployment, ": ", 
+					mo_min, "-",
+					mo_max, " ", yr_max,
+					" r=", ref, " m=", meas
+				),
+				paste0(
+					mos_into_deployment, ": ", 
+					mo_min, " ", yr_min, "-",
+					mo_max, " ", yr_max,
+					" r=", ref, " m=", meas
+				)
+			) 
+		) %>% 
+		select(mos_into_deployment, label)
+	vec = t(setNames(label_stats$label, label_stats$mos_into_deployment))
+	print(head(vec))
+	return(vec)
 }
 
 deployment_density_stats = function(

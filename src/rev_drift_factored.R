@@ -12,17 +12,31 @@ source("./src/plot_helpers.R")
 AVG_WINDOW = 24
 SAVGOL_FILTER_LEN = 24+1
 
-co = import_co()
+elongate_wrapper = function(attempt_read = TRUE) {
+    if (attempt_read & file.exists("./clean_data/beaco2n_drift_long.csv")) {
+        co_long = read_csv("./clean_data/beaco2n_drift_long.csv")
+    } else {
+        co_long = elongate_df(df=co, parameter_arg="co", sensors=c("beaco2n","aqs"), dates_of_deployment=dates_of_deployment)
+        write_csv(x=co_long, file="./clean_data/beaco2n_drift_long.csv", col_names=TRUE)
+    }
+}
 
+co = import_co()
 dates_of_deployment = dates_of_deployment(df=co, parameter_arg="co", sensors=c("beaco2n","aqs"))
+co = co %>% 
+    pivot_wider(
+        names_from="parameter",
+        values_from="value"
+    ) %>%
+    filter(is.na(temp) | temp < 30) %>%
+    pivot_longer(
+        cols=c("co","temp","rh"),
+        names_to = "parameter",
+        values_to="value"
+    )
 
 co_long = tibble()
-if (file.exists("./clean_data/beaco2n_drift_long.csv")) {
-    co_long = read_csv("./clean_data/beaco2n_drift_long.csv")
-} else {
-    co_long = elongate_df(df=co, parameter_arg="co", sensors=c("beaco2n","aqs"), dates_of_deployment=dates_of_deployment)
-    write_csv(x=co_long, file="./clean_data/beaco2n_drift_long.csv", col_names=TRUE)
-}
+co_long = elongate_wrapper(TRUE)
 
 self_ref=FALSE
 season_data = arrange_season_data(
