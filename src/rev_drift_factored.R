@@ -38,8 +38,10 @@ co = co %>%
 co_long = tibble()
 co_long = elongate_wrapper(TRUE)
 
+pm=import_pm()
+
 self_ref=FALSE
-season_data = arrange_season_data(
+co_seasonated = arrange_season_data(
     dataset=co_long,
     noise_filter="original",
     meas_sensor="beaco2n",
@@ -49,14 +51,14 @@ season_data = arrange_season_data(
     ref_location="myron"
 )
 deployment_density(
-    season_data=season_data,
+    season_data=co_seasonated,
     filepath="./plots/myron_pdfs_ext.png",
     title="Distributions by Operating Month",
     subtitle="BEACO2N vs AQS at Myron (filter=original)", 
     x="[CO] (ppm)",
     y=TeX("$\\frac{d (Cumulative\\_density)}{d[CO]}=pdf$")
 )
-dens = deployment_density_stats(season_data=season_data)
+dens = deployment_density_stats(season_data=co_seasonated)
 divergence_line_plot(
     dens[[1]], 
     filepath="./plots/myron_divs_ext.png",
