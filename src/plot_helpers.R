@@ -5,6 +5,7 @@ library(zoo)
 library(checkmate)
 library(moments) # skew, kurtosis
 library(philentropy) # divergences
+library(patchwork)
 
 beaco2n_site_list = c(
 	"myron","zuccolo","wecc","rocklib","silverlake","unitedway","cfs","pha","reservoir","ccri",
@@ -357,7 +358,8 @@ deployment_correlation = function(
 	filepath,
 	...
 ) {
-	deployment_plot = 
+	browser()
+	residual_plot = 
 		ggplot(
 			data=deployment_data,
 			mapping=aes(
@@ -381,8 +383,72 @@ deployment_correlation = function(
 		geom_abline(slope=1, intercept=0, color="red") +
 		geom_point(alpha=0.05) + 
 		labs(...)
-	ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+	ggsave(plot=residual_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300)
 }
+
+deployment_corr_stat_lineplot = function(
+	deployment_data, 
+	filepath,
+	...
+) {
+	month_stats = deployment_data %>%
+		group_by(mos_into_deployment) %>%
+		summarize(
+			`R^2` = cor(meas, ref, use="pairwise.complete.obs")^2,
+			Pearson_R = cor(meas, ref, use="pairwise.complete.obs"),
+			mean_residual = mean(resid, na.rm=TRUE),
+			median_residual = median(resid, na.rm=TRUE),
+			residual_kurtosis = kurtosis(resid, na.rm=TRUE),
+			residual_skewness = skewness(resid, na.rm=TRUE)
+		) %>%
+		ungroup() %>%
+		pivot_longer(
+			cols = -mos_into_deployment,
+			names_to = "statistic",
+			values_to = "value"
+		)
+	month_corr_stats_lineplot = 
+		ggplot(
+			data = month_stats %>% filter(!(statistic %in% c("residual_kurtosis","residual_skewness")), !is.na(value)),
+			mapping=aes(
+				x=mos_into_deployment,
+				y=value,
+				color=statistic
+			)
+		) + 
+		geom_line() +
+		scale_x_continuous(
+			breaks = seq(
+				from = min(month_stats$mos_into_deployment),
+				to   = max(month_stats$mos_into_deployment),
+				by   = 6
+			)
+		) +
+		labs(...)
+	month_dist_stats_lineplot = 
+		ggplot(
+			data = month_stats %>% filter(statistic %in% c("residual_kurtosis","residual_skewness"), !is.na(value)),
+			mapping=aes(
+				x=mos_into_deployment,
+				y=value,
+				color=statistic
+			)
+		) + 
+		geom_line() +
+		scale_x_continuous(
+			breaks = seq(
+				from = min(month_stats$mos_into_deployment),
+				to   = max(month_stats$mos_into_deployment),
+				by   = 6
+			)
+		) +
+		labs(...)	
+	
+	patch = month_corr_stats_lineplot / month_dist_stats_lineplot
+	ggsave(plot=patch, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+}
+
+
 
 timeseries_deployment_residual = function(
 	deployment_data, 

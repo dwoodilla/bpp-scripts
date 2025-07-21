@@ -9,8 +9,7 @@ library(gridExtra)
 source("./clean/import_cleaned.R")
 source("./src/plot_helpers.R")
 
-AVG_WINDOW = 24
-SAVGOL_FILTER_LEN = 24+1
+
 
 co = import_co()
 co_dod = dates_of_deployment(df=co, parameter_arg="co", sensors=c("beaco2n","aqs"))
@@ -40,6 +39,7 @@ co_long_filtered = elongate_wrapper(
     dates_of_deployment=co_dod,
     filepath="./clean_data/beaco2n_drift_long_metfiltered.csv"
 )
+
 
 # Data structures for external reference
 co_unfiltered_plottable_extref = arrange_season_data(
@@ -132,6 +132,16 @@ deployment_correlation(
     x="Reference [CO] (ppm)",
     y="Measurement [CO] (ppm)"
 )
+deployment_corr_stat_lineplot(
+    deployment_data = co_unfiltered_plottable_deployment_extref,
+    filepath="./plots/co_drift/myron/extref/deployment_corrstats_nofilter.png",
+    title="Deployment Correlation Statistics by Operating Month",
+    subtitle="Myron BEACO2N vs. Myron RIDEM",
+    caption="meteorology=(no filter)  noise=\"original\"",
+    x="Months deployed",
+    y="Statistic value"
+
+)
 deployment_density(
     season_data=co_unfiltered_plottable_extref,
     filepath="./plots/co_drift/myron/extref/deployment_pdfs_nofilter.png",
@@ -175,6 +185,16 @@ deployment_correlation(
     caption="meteorology=(t<30C, rh<0.75)  noise=\"original\"",
     x="Reference [CO] (ppm)",
     y="Measurement [CO] (ppm)"
+)
+deployment_corr_stat_lineplot(
+    deployment_data = co_filtered_plottable_deployment_extref,
+    filepath="./plots/co_drift/myron/extref/deployment_corrstats_metfilter.png",
+    title="Deployment Correlation Statistics by Operating Month",
+    subtitle="Myron BEACO2N vs. Myron RIDEM",
+    caption="meteorology=(no filter)  noise=\"original\"",
+    x="Months deployed",
+    y="Statistic value"
+
 )
 deployment_density(
     season_data=co_filtered_plottable_extref,
@@ -317,8 +337,9 @@ divergence_line_plot(
     self_ref=FALSE,
     title="Change in Divergence after Meteorological Filtering",
     subtitle="Myron BEACO2N vs. RIDEM",
-    caption="meteorology=NA, noise=\"original\""
-
+    caption="meteorology=NA, noise=\"original\"",
+    y="Meteorologically Filtered Statistic - Non-filtered Statistic",
+    x="Months into Deployment"
 )
 
 metfilter_divergence_diff_by_opmonth_intref = 
@@ -341,6 +362,7 @@ divergence_line_plot(
     self_ref=FALSE,
     title="Change in Divergence after Meteorological Filtering",
     subtitle="Myron BEACO2N vs. BEACO2N at Operating-year 1",
-    caption="meteorology=NA, noise=\"original\""
-
+    caption="meteorology=NA, noise=\"original\"",
+    y="Meteorologically Filtered Statistic - Non-filtered Statistic",
+    x="Months into Deployment"
 )
