@@ -7,10 +7,14 @@ library(moments) # skew, kurtosis
 library(philentropy) # divergences
 library(patchwork)
 
+# Errors: rochambeaulib, zuccolo, smithhilllib, pema, rockspot
+# beaco2n_site_list = c(
+# 	"myron","zuccolo","wecc","rocklib","silverlake","unitedway","cfs","pha","reservoir","ccri",
+# 	"mtpleasant","carnevale","martialarts","southprovlib","ecubed","ricollege","blackstone","rochambeaulib","provcollege","prek",
+# 	"smithhilllib","pema","rockspot","medschool","dpw"
+# )
 beaco2n_site_list = c(
-	"myron","zuccolo","wecc","rocklib","silverlake","unitedway","cfs","pha","reservoir","ccri",
-	"mtpleasant","carnevale","martialarts","southprovlib","ecubed","ricollege","blackstone","rochambeaulib","provcollege","prek",
-	"smithhilllib","pema","rockspot","medschool","dpw"
+	"medschool","dpw"
 )
 quantaq_site_list = c("dpw","pema","pha")
 aqs_site_list = c("myron","cranston")
@@ -75,9 +79,9 @@ arrange_season_data = function(
 				day=day(date),
 				hour=hour(date)
 			) %>%
-			left_join(first_year_ref, by=c("month","day","hour"), relationship="many-to-one") %>%
+			left_join(y=first_year_ref, by=c("month","day","hour"), relationship="many-to-one") %>%
 			mutate(value=value_ref) %>%
-			select(date, everything(), -month, -day, -hour, -fy_ref_date)
+			select(!c(month, day, hour, fy_ref_date))
 	}
 	plot_data = plot_data %>%
 		left_join(y=ref_data, by="date", suffix=c("_meas","_ref")) %>%
@@ -204,7 +208,7 @@ elongate_df = function(
 			hours_into_sn = hours_into_season(date)
 		) %>%
 		filter(!is.na(value)) %>%
-		left_join(dates_of_deployment, by = c("sensor", "location")) %>%
+		left_join(y=dates_of_deployment, by = c("sensor", "location"), relationship="many-to-one") %>%
 		mutate(
 			mos_into_deployment = interval(deployment_start, date) %/% months(1),
 			hrs_into_deployment = interval(deployment_start, date) %/% hours(1),
@@ -249,7 +253,7 @@ timeseries_year_season = function(
 		theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
 		geom_hline(yintercept = 0, color="red") +
 		labs(...)
-	ggsave(plot=ts_year_season, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+	ggsave(plot=ts_year_season, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
 }
 
 timeseries_season = function(
@@ -272,7 +276,7 @@ timeseries_season = function(
 		theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
 		geom_hline(yintercept = 0, color="red") +
 		labs(...)
-	ggsave(plot=ts_season, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+	ggsave(plot=ts_season, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
 }
 
 box_year_season = function(
@@ -290,7 +294,7 @@ box_year_season = function(
 		theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
 		# geom_hline(yintercept = 0, color="red") +
 		labs(...)
-	ggsave(plot=box_year_season, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+	ggsave(plot=box_year_season, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
 }
 
 box_season = function(
@@ -311,7 +315,7 @@ box_season = function(
 		geom_boxplot() + theme_bw() +
 		theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
 		labs(...)
-	ggsave(plot=box_sn, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+	ggsave(plot=box_sn, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
 }
 
 violin_year_season = function(
@@ -328,7 +332,7 @@ violin_year_season = function(
 		geom_violin(na.rm=TRUE) + theme_bw() +
 		theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
 		labs(...)
-	ggsave(plot=violin_year_season, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+	ggsave(plot=violin_year_season, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
 }
 
 violin_season = function(
@@ -349,7 +353,7 @@ violin_season = function(
 		geom_violin() + theme_bw() +
 		theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
 		labs(...)
-	ggsave(plot=violin_sn, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+	ggsave(plot=violin_sn, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
 }
 
 deployment_correlation = function(
@@ -358,7 +362,7 @@ deployment_correlation = function(
 	filepath,
 	...
 ) {
-	browser()
+	# browser()
 	residual_plot = 
 		ggplot(
 			data=deployment_data,
@@ -379,11 +383,11 @@ deployment_correlation = function(
 				}
 			)
 		) +
-		stat_poly_line() + stat_poly_eq() +
+		# stat_poly_line() + stat_poly_eq() +
 		geom_abline(slope=1, intercept=0, color="red") +
 		geom_point(alpha=0.05) + 
 		labs(...)
-	ggsave(plot=residual_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+	ggsave(plot=residual_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
 }
 
 deployment_corr_stat_lineplot = function(
@@ -445,7 +449,7 @@ deployment_corr_stat_lineplot = function(
 		labs(...)	
 	
 	patch = month_corr_stats_lineplot / month_dist_stats_lineplot
-	ggsave(plot=patch, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+	ggsave(plot=patch, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
 }
 
 
@@ -477,7 +481,7 @@ timeseries_deployment_residual = function(
 		) +
 		geom_line() + 
 		labs(...)
-	ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+	ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
 }
 
 violin_deployment_residual = function(
@@ -499,7 +503,7 @@ violin_deployment_residual = function(
 		) +
 		geom_violin() + 
 		labs(...)
-	ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+	ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
 }
 
 deployment_density = function(
@@ -527,15 +531,10 @@ deployment_density = function(
 					))
 				}
 			)
-			
-			# function(x) {return(deployment_density_labeller(
-			# 	season_data=season_data, 
-			# 	dep_months=x
-			# ))}
 		) +
 		geom_density(alpha=0.5) +
 		labs(...)
-	ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300)
+	ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
 }
 
 deployment_density_labeller = function(season_data, dep_months) {
@@ -571,7 +570,15 @@ deployment_density_labeller = function(season_data, dep_months) {
 				)
 			) 
 		) %>% 
-		select(mos_into_deployment, label)
+		select(mos_into_deployment, label) %>%
+		complete(
+			mos_into_deployment = full_seq(mos_into_deployment, 1)
+		) %>%
+		mutate(label = if_else(
+			is.na(label),
+			paste0(mos_into_deployment, ": Insufficient Information"),
+			label
+		))
 	vec = t(setNames(label_stats$label, label_stats$mos_into_deployment))
 	return(vec)
 }
@@ -661,6 +668,7 @@ deployment_density_stats = function(
 			values_to="value"
 		) %>%
 		mutate(plottype=na_if(plottype, ""))
+
 	divergence_by_month = select(
 		.data=divergence_by_month,
 		c(mos_into_deployment, obs_meas, obs_ref, pdf, pdf_resolution)
@@ -692,7 +700,7 @@ divergence_line_plot = function(
 			)
 		) +
 		geom_line() + theme_bw() +
-		coord_cartesian(ylim=lims_y) +
+		coord_cartesian(ylim=c(-1,1)) +
 		scale_x_continuous(
 			breaks = seq(
 				from = min(pdf_stats$mos_into_deployment),
@@ -702,12 +710,5 @@ divergence_line_plot = function(
 		) +
 		labs(...)
 
-	ggsave(
-		plot=divergences_plot, 
-		filename=filepath, 
-		width=5, 
-		height=5, 
-		units="in", 
-		dpi=300
-	)
+	ggsave(plot=divergences_plot, filename=filepath, width=5, height=5, units="in", dpi=300, create.dir=TRUE)
 }

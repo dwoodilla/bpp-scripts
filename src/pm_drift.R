@@ -31,7 +31,7 @@ pm_long = elongate_wrapper(
     parameter="pm25",
     sensors=c("beaco2n","quantaq"),
     dates_of_deployment=pm_dod,
-    filepath="./clean_data/pm_drift_long.csv"
+    filepath="./cache/pm_drift_long.csv"
 )
 
 

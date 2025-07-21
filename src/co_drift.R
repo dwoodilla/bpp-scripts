@@ -30,14 +30,14 @@ co_long_unfiltered = elongate_wrapper(
     parameter="co",
     sensors=c("beaco2n","aqs"),
     dates_of_deployment=co_dod,
-    filepath="./clean_data/beaco2n_drift_long.csv"
+    filepath="./cache/beaco2n_drift_long.csv"
 )
 co_long_filtered = elongate_wrapper(
     df=co_filtered,
     parameter="co",
     sensors=c("beaco2n","aqs"),
     dates_of_deployment=co_dod,
-    filepath="./clean_data/beaco2n_drift_long_metfiltered.csv"
+    filepath="./cache/beaco2n_drift_long_metfiltered.csv"
 )
 
 
