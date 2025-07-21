@@ -12,18 +12,9 @@ source("./src/plot_helpers.R")
 AVG_WINDOW = 24
 SAVGOL_FILTER_LEN = 24+1
 
-pm_elongate_wrapper = function(attempt_read = TRUE) {
-    if (attempt_read & file.exists("./clean_data/pm_drift_long.csv")) {
-        pm_long = read_csv("./clean_data/pm_drift_long.csv")
-    } else {
-        pm_long = elongate_df(df=pm, parameter_arg="pm25", sensors=c("beaco2n","quantaq"), dates_of_deployment=pm_dod)
-        write_csv(x=pm_long, file="./clean_data/pm_drift_long.csv", col_names=TRUE)
-    }
-}
-
 pm=import_pm()
 pm_dod = dates_of_deployment(df=pm, parameter_arg="pm", sensors=c("beaco2n","quantaq"))
-pm = pm %>%
+pm_filtered = pm %>%
     pivot_wider(
         names_from="parameter",
         values_from="value"
@@ -34,7 +25,14 @@ pm = pm %>%
         names_to = "parameter",
         values_to="value"
     )
-pm_long = pm_elongate_wrapper(TRUE)
+# pm_long = pm_elongate_wrapper(TRUE)
+pm_long = elongate_wrapper(
+    df=pm,
+    parameter="pm25",
+    sensors=c("beaco2n","quantaq"),
+    dates_of_deployment=pm_dod,
+    filepath="./clean_data/pm_drift_long.csv"
+)
 
 
 for (site in c("dpw","pema","pha")) {

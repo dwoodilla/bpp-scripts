@@ -6,6 +6,14 @@ library(checkmate)
 library(moments) # skew, kurtosis
 library(philentropy) # divergences
 
+beaco2n_site_list = c(
+	"myron","zuccolo","wecc","rocklib","silverlake","unitedway","cfs","pha","reservoir","ccri",
+	"mtpleasant","carnevale","martialarts","southprovlib","ecubed","ricollege","blackstone","rochambeaulib","provcollege","prek",
+	"smithhilllib","pema","rockspot","medschool","dpw"
+)
+quantaq_site_list = c("dpw","pema","pha")
+aqs_site_list = c("myron","cranston")
+
 season = function(date_vec) {
 	m = month(as.Date(date_vec))
 	return(
@@ -118,6 +126,33 @@ arrange_deployment_data = function(
 			values_from=value
 		)
 	return(ret)
+}
+
+elongate_wrapper = function(
+	attempt_read = TRUE, 
+	filepath, 
+	df, 
+	parameter,
+	sensors, 
+	avg_window=24, 
+	savgol_len=25, 
+	dates_of_deployment
+) {
+	df_long = tibble()
+    if (attempt_read & file.exists(filepath)) {
+        df_long = read_csv(filepath)
+    } else {
+        df_long = elongate_df(
+			df=df, 
+			parameter_arg=parameter, 
+			sensors=sensors, 
+			dates_of_deployment=dates_of_deployment, 
+			avg_window=avg_window, 
+			savgol_len=savgol_len
+		)
+        write_csv(x=df_long, file=filepath, col_names=TRUE)
+    }
+	return(df_long)
 }
 
 elongate_df = function(
@@ -317,6 +352,7 @@ violin_season = function(
 }
 
 deployment_correlation = function(
+	season_data,
 	deployment_data, 
 	filepath,
 	...
@@ -332,6 +368,14 @@ deployment_correlation = function(
 		facet_wrap(
 			~ mos_into_deployment, 
 			ncol=3, 
+			labeller = labeller(
+				mos_into_deployment = function(x) {
+					return(deployment_density_labeller(
+						season_data=season_data, 
+						dep_months=x
+					))
+				}
+			)
 		) +
 		stat_poly_line() + stat_poly_eq() +
 		geom_abline(slope=1, intercept=0, color="red") +
@@ -356,6 +400,14 @@ timeseries_deployment_residual = function(
 		facet_wrap(
 			~ mos_into_deployment, 
 			ncol=3, 
+			labeller = labeller(
+				mos_into_deployment = function(x) {
+					return(deployment_density_labeller(
+						season_data=season_data, 
+						dep_months=x
+					))
+				}
+			)
 		) +
 		geom_line() + 
 		labs(...)
@@ -555,6 +607,7 @@ divergence_line_plot = function(
 	pdf_stats,
 	filepath,
 	self_ref=FALSE,
+	lims_y=c(0,1),
 	...
 ) {
 	if (self_ref) pdf_stats = filter(.data=pdf_stats, mos_into_deployment>=12)
@@ -573,6 +626,14 @@ divergence_line_plot = function(
 			)
 		) +
 		geom_line() + theme_bw() +
+		coord_cartesian(ylim=lims_y) +
+		scale_x_continuous(
+			breaks = seq(
+				from = min(pdf_stats$mos_into_deployment),
+				to   = max(pdf_stats$mos_into_deployment),
+				by   = 6
+			)
+		) +
 		labs(...)
 
 	ggsave(
