@@ -36,9 +36,6 @@ ref_dfs.append(met)
 
 combined_df = pd.concat(meas_dfs + ref_dfs)
 
-# print(combined_df.head())
-# print(combined_df.tail())
-
 long_df = pd.melt(
     combined_df,
     id_vars=["date","sensor","location"],
@@ -46,11 +43,6 @@ long_df = pd.melt(
     var_name="parameter",
     value_name="value"
 )
-
-# print(long_df.head())
-# print(long_df.tail())
-# long_df.to_csv("test.csv", index=False)
-# exit()
 
 wide_df = pd.pivot_table(
     long_df,
