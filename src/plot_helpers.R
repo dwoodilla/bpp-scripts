@@ -15,6 +15,9 @@ beaco2n_site_list = c(
 )
 quantaq_site_list = c("dpw","pema","pha")
 aqs_site_list = c("myron","cranston")
+beaco2n_berkeley_site_list = c(
+	"albany","dejean","kensington","korematsu","madera","nystrom","peres","rfs","washington","super"
+)
 
 season = function(date_vec) {
 	m = month(as.Date(date_vec))
@@ -597,60 +600,75 @@ deployment_density_stats = function(
 			names_from=plottype,
 			values_from=c(mean,sd,kurtosis,skewness)
 		)
-	divergence_by_month = 
-		season_data %>%
-		filter(plottype %in% c("meas","ref")) %>%
-		select(date, mos_into_deployment, plottype, value) %>%
-		pivot_wider(names_from=plottype, values_from=value) %>%
-		filter(if_all(c(meas, ref), ~ !is.na(.))) %>%
-		pivot_longer(cols=c(meas, ref), names_to="plottype",values_to="value") %>%
-		group_by(mos_into_deployment, plottype) %>%
-		select(-date) %>%
-		nest(data = c(value)) %>%
-		pivot_wider(names_from=plottype, values_from=data) %>%
-		mutate( 
-			density = map2(meas, ref, function(m,r) {
-				est_n = length(m$value)
-				values = c(m$value, r$value)
-				est_grid = seq(
-					min(values, na.rm=TRUE), 
-					max(values, na.rm=TRUE), 
-					length.out=est_n
-				)
-				est_min = min(est_grid)
-				est_max = max(est_grid)
-				dm = density(m$value, from=est_min, to=est_max, n=est_n, na.rm=TRUE)
-				dr = density(r$value, from=est_min, to=est_max, n=est_n, na.rm=TRUE)
-				return(tibble(
-					x=est_grid, 
-					m=dm$y/sum(dm$y),
-					r=dr$y/sum(dr$y)
-				))
-			}),
-		  	KL = map_dbl(density, ~ {
-				distance(
-					x=t(as.matrix(select(.x, m, r))), 
-					method="kullback-leibler",
-					mute.message=TRUE
-				)
-			}),
-			hellinger = map_dbl(density, ~ {
-				distance(
-					x=t(as.matrix(select(.x, m, r))), 
-					method="hellinger",
-					mute.message=TRUE
-				)
-			}),
-			euclidean = map_dbl(density, ~ {
-				distance(
-					x=t(as.matrix(select(.x, m, r))), 
-					method="euclidean",
-					mute.message=TRUE
-				)
-			}),
-			pdf_resolution = map_dbl(density, ~ nrow(.x))
-		) %>%
-		rename(obs_meas=meas, obs_ref=ref, pdf=density)
+	if ("dejean" %in% season_data$location) {
+		print("break")
+	}
+	divergence_by_month = season_data
+	# browser()
+	# print(head(divergence_by_month))
+	divergence_by_month = filter(.data=divergence_by_month, plottype %in% c("meas","ref"))
+	# print(head(divergence_by_month))
+	divergence_by_month = select(.data=divergence_by_month, date, mos_into_deployment, plottype, value) 
+	# print(head(divergence_by_month))
+	divergence_by_month = pivot_wider(data=divergence_by_month, names_from=plottype, values_from=value) 
+	# print(head(divergence_by_month))
+	divergence_by_month = filter(.data=divergence_by_month, if_all(c(meas, ref), ~ !is.na(.))) 
+	# print(head(divergence_by_month))
+	divergence_by_month = pivot_longer(data=divergence_by_month, cols=c(meas, ref), names_to="plottype",values_to="value") 
+	# print(head(divergence_by_month))
+	divergence_by_month = group_by(.data=divergence_by_month, mos_into_deployment, plottype) 
+	# print(head(divergence_by_month))
+	divergence_by_month = select(.data=divergence_by_month, -date) 
+	# print(head(divergence_by_month))
+	divergence_by_month = nest(.data=divergence_by_month, data = c(value)) 
+	# print(head(divergence_by_month))
+	divergence_by_month = pivot_wider(data=divergence_by_month, names_from=plottype, values_from=data) 
+	# print(head(divergence_by_month))
+	
+	divergence_by_month = mutate(.data=divergence_by_month,
+		density = map2(meas, ref, function(m,r) {
+			est_n = length(m$value)
+			values = c(m$value, r$value)
+			est_grid = seq(
+				min(values, na.rm=TRUE), 
+				max(values, na.rm=TRUE), 
+				length.out=est_n
+			)
+			est_min = min(est_grid)
+			est_max = max(est_grid)
+			dm = density(m$value, from=est_min, to=est_max, n=est_n, na.rm=TRUE)
+			dr = density(r$value, from=est_min, to=est_max, n=est_n, na.rm=TRUE)
+			return(tibble(
+				x=est_grid, 
+				m=dm$y/sum(dm$y),
+				r=dr$y/sum(dr$y)
+			))
+		}),
+		KL = map_dbl(density, ~ {
+			distance(
+				x=t(as.matrix(select(.x, m, r))), 
+				method="kullback-leibler",
+				mute.message=TRUE
+			)
+		}),
+		hellinger = map_dbl(density, ~ {
+			distance(
+				x=t(as.matrix(select(.x, m, r))), 
+				method="hellinger",
+				mute.message=TRUE
+			)
+		}),
+		euclidean = map_dbl(density, ~ {
+			distance(
+				x=t(as.matrix(select(.x, m, r))), 
+				method="euclidean",
+				mute.message=TRUE
+			)
+		}),
+		pdf_resolution = map_dbl(density, ~ nrow(.x))
+	)
+	divergence_by_month = rename(.data=divergence_by_month, obs_meas=meas, obs_ref=ref, pdf=density)
+
 	stats_by_month = 
 		stats_by_month %>% 
 		left_join(

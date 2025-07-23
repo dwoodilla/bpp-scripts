@@ -66,7 +66,7 @@ for (meas_location_iter in beaco2n_site_list) {
         meas_location=meas_location_iter,
         self_ref=FALSE,
         ref_sensor="aqs",
-        ref_location="myron"
+        ref_location=ref_location
     )
     co_unfiltered_deployment_pdf_stats_extref = deployment_density_stats(
         season_data=co_unfiltered_plottable_extref
@@ -78,7 +78,7 @@ for (meas_location_iter in beaco2n_site_list) {
         meas_location=meas_location_iter,
         self_ref=FALSE,
         ref_sensor="aqs",
-        ref_location="myron"
+        ref_location=ref_location
     )
     co_filtered_plottable_deployment_extref = arrange_deployment_data(
         dataset=co_long_filtered,
@@ -87,7 +87,7 @@ for (meas_location_iter in beaco2n_site_list) {
         meas_location=meas_location_iter,
         self_ref=FALSE,
         ref_sensor="aqs",
-        ref_location="myron"
+        ref_location=ref_location
     )
     co_filtered_deployment_pdf_stats_extref = deployment_density_stats(
         season_data=co_filtered_plottable_extref

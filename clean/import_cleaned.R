@@ -1,8 +1,9 @@
 library(tidyverse)
 
 # Helper function to import data from "./clean_data/all_co_temp_rh_2022.csv"
-import_co = function() {
-    all_co = read.csv("./clean_data/merged_co.csv")
+import_co = function(city="providence") {
+    if (city=="berkeley") all_co = read.csv("./clean_data/merged_berkeley_co.csv")
+    else all_co = read.csv("./clean_data/merged_co.csv")
 
     all_co$date = as.POSIXct(all_co$date, tz="UTC")
     all_co = all_co %>% pivot_longer( # Convert combined_df to tidy format
