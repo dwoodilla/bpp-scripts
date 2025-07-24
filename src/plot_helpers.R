@@ -149,7 +149,7 @@ elongate_wrapper = function(
 			avg_window=avg_window, 
 			savgol_len=savgol_len
 		)
-        write_csv(x=df_long, file=filepath, col_names=TRUE)
+        write_csv(x=df_long, file=filepath, col_names=TRUE, append=FALSE)
     }
 	return(df_long)
 }
@@ -598,7 +598,7 @@ deployment_density_stats = function(
 		filter(plottype %in% c("meas", "ref")) %>%
 		select(date, mos_into_deployment, plottype, value) %>%
 		group_by(mos_into_deployment, plottype) %>%
-		filter(n() >= 10) %>%
+		filter(n() >= 512) %>%
 		group_by(mos_into_deployment) %>%
 		filter(n_distinct(plottype) > 1) %>%
 		ungroup() %>%
