@@ -1,6 +1,7 @@
 library(tidyverse)
 
-# Helper function to import data from "./clean_data/all_co_temp_rh_2022.csv"
+# NOTE: Clearing the cache does not actually force a refresh of data originating from uncleaned data,
+# because the python cleaner also needs to run. This method should execute the cleaner when file read fails.
 import_co = function(city="providence") {
     if (city=="berkeley") all_co = read.csv("./clean_data/merged_berkeley_co.csv")
     else all_co = read.csv("./clean_data/merged_co.csv")

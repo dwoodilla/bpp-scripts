@@ -6,6 +6,7 @@ library(checkmate)
 library(moments) # skew, kurtosis
 library(philentropy) # divergences
 library(patchwork)
+# library(statip) # alternative hellinger
 
 # Errors: rochambeaulib, zuccolo, smithhilllib, pema, rockspot
 beaco2n_site_list = c(
@@ -16,7 +17,7 @@ beaco2n_site_list = c(
 quantaq_site_list = c("dpw","pema","pha")
 aqs_site_list = c("myron","cranston")
 beaco2n_berkeley_site_list = c(
-	"albany","dejean","kensington","korematsu","madera","nystrom","peres","rfs","washington","super"
+	"rfs","dejean","albany","korematsu","madera","nystrom","peres","washington"
 )
 
 season = function(date_vec) {
@@ -54,60 +55,53 @@ arrange_season_data = function(
 	ref_sensor, 
 	ref_location
 ) {
-	plot_data = dataset %>% filter(sensor==meas_sensor, filter==noise_filter, location==meas_location)
+	plot_data = filter(.data=dataset, sensor==meas_sensor, filter==noise_filter, location==meas_location) # DEBUG: location filter returns 0 rows
+	if (nrow(plot_data)==0) { stop(paste0("Filter arguments yield empty measurement dataset:\nmeas_sensor=",meas_sensor,"\nmeas_location=",meas_location)) }
 	if (!self_ref) {
-		if (missing(ref_sensor) | missing(ref_location)) {
-			stop("Must have self_ref=TRUE or provide ref_sensor and ref_location.")
-		}
-		ref_data = dataset %>% filter(sensor==ref_sensor, filter==noise_filter, location==ref_location)
+		if (missing(ref_sensor) | missing(ref_location)) { stop("Must have self_ref=TRUE or provide ref_sensor and ref_location.") }
+		ref_data = filter(.data=dataset, sensor==ref_sensor, filter==noise_filter, location==ref_location)
+		if (nrow(ref_data)==0) { stop(paste0("Filter arguments yield empty reference dataset:\nref_sensor=",ref_sensor,"\nref_location=",ref_location)) }
 	} else {
 		first_year_ref = plot_data %>%
-			filter(mos_into_deployment <= 12) %>%
-			mutate(
-				month = month(date),
-				day = day(date),
-				hour = hour(date)
-			) %>%
+			filter(mos_into_deployment < 12) %>%
+			mutate(month = month(date), day = day(date), hour = hour(date)) %>%
 			group_by(month, day, hour) %>%
 			slice_min(mos_into_deployment, with_ties = FALSE) %>%
 			ungroup() %>%
 			select(month, day, hour, value, date) %>%
 			rename(value_ref = value, fy_ref_date = date)
 		ref_data = plot_data %>%
-			mutate(
-				month=month(date),
-				day=day(date),
-				hour=hour(date)
-			) %>%
-			left_join(y=first_year_ref, by=c("month","day","hour"), relationship="many-to-one") %>%
-			mutate(value=value_ref) %>%
+			mutate(month = month(date), day = day(date), hour = hour(date)) %>%
+			left_join(y=first_year_ref, by = c("month", "day", "hour"), relationship = "many-to-one") %>%
+			mutate(value = value_ref) %>%
 			select(!c(month, day, hour, fy_ref_date))
 	}
-	plot_data = plot_data %>%
-		left_join(y=ref_data, by="date", suffix=c("_meas","_ref")) %>%
-		mutate(
-			value_resid = value_meas - value_ref,
-			# Copy remaining data from measurement to residual.
-			# mos_into_deployment may need to depend on whether both sensors have data or not.
-			sensor_resid = "residual",
-			sn_year_resid = sn_year_meas,
-			season_resid = season_meas,
-			hours_into_sn_resid = hours_into_sn_meas,
-			mos_into_deployment_resid = mos_into_deployment_meas,
-			hrs_into_deployment_resid = hrs_into_deployment_meas,
-			hrs_into_deployment_month_resid = hrs_into_deployment_month_meas,
-			filter_resid = filter_meas,
-			mos_into_deployment_ref=mos_into_deployment_meas,
-			hrs_into_deployment_ref=hrs_into_deployment_meas,
-			hrs_into_deployment_month_ref = hrs_into_deployment_month_meas,
-			season_ref=season_meas,
-			hours_into_sn_ref=hours_into_sn_meas
-		) %>%
-		pivot_longer(
-			cols=matches("_(meas|ref|resid)$"),
-			names_to=c(".value", "plottype"),
-			names_pattern = "^(.*)_(ref|meas|resid)$"
-		)
+	plot_data = left_join(x=plot_data, y=ref_data, by="date", suffix=c("_meas","_ref"))
+	plot_data = mutate( # could use data %>% mutate() %>% rename_with(...)
+		.data=plot_data, 
+		value_resid = value_meas - value_ref,
+		# Copy remaining data from measurement to residual.
+		# mos_into_deployment may need to depend on whether both sensors have data or not.
+		sensor_resid = "residual",
+		sn_year_resid = sn_year_meas,
+		season_resid = season_meas,
+		hours_into_sn_resid = hours_into_sn_meas,
+		mos_into_deployment_resid = mos_into_deployment_meas,
+		hrs_into_deployment_resid = hrs_into_deployment_meas,
+		hrs_into_deployment_month_resid = hrs_into_deployment_month_meas,
+		filter_resid = filter_meas,
+		mos_into_deployment_ref=mos_into_deployment_meas,
+		hrs_into_deployment_ref=hrs_into_deployment_meas,
+		hrs_into_deployment_month_ref = hrs_into_deployment_month_meas,
+		season_ref=season_meas,
+		hours_into_sn_ref=hours_into_sn_meas
+	)
+	plot_data = pivot_longer(
+		data = plot_data,
+		cols=matches("_(meas|ref|resid)$"),
+		names_to=c(".value", "plottype"),
+		names_pattern = "^(.*)_(ref|meas|resid)$"
+	)
 	if (any(is.na(plot_data$sn_year)) | any(is.na(plot_data$season))) {
 		warning("Dropping rows of plot data with NA faceting variables.")
 		plot_data = plot_data %>% filter(!is.na(sn_year), !is.na(season))
@@ -600,34 +594,31 @@ deployment_density_stats = function(
 			names_from=plottype,
 			values_from=c(mean,sd,kurtosis,skewness)
 		)
-	if ("dejean" %in% season_data$location) {
-		print("break")
-	}
-	divergence_by_month = season_data
-	# browser()
-	# print(head(divergence_by_month))
-	divergence_by_month = filter(.data=divergence_by_month, plottype %in% c("meas","ref"))
-	# print(head(divergence_by_month))
-	divergence_by_month = select(.data=divergence_by_month, date, mos_into_deployment, plottype, value) 
-	# print(head(divergence_by_month))
-	divergence_by_month = pivot_wider(data=divergence_by_month, names_from=plottype, values_from=value) 
-	# print(head(divergence_by_month))
-	divergence_by_month = filter(.data=divergence_by_month, if_all(c(meas, ref), ~ !is.na(.))) 
-	# print(head(divergence_by_month))
-	divergence_by_month = pivot_longer(data=divergence_by_month, cols=c(meas, ref), names_to="plottype",values_to="value") 
-	# print(head(divergence_by_month))
-	divergence_by_month = group_by(.data=divergence_by_month, mos_into_deployment, plottype) 
-	# print(head(divergence_by_month))
-	divergence_by_month = select(.data=divergence_by_month, -date) 
-	# print(head(divergence_by_month))
-	divergence_by_month = nest(.data=divergence_by_month, data = c(value)) 
-	# print(head(divergence_by_month))
-	divergence_by_month = pivot_wider(data=divergence_by_month, names_from=plottype, values_from=data) 
-	# print(head(divergence_by_month))
+	divergence_by_month = season_data %>%
+		filter(plottype %in% c("meas", "ref")) %>%
+		select(date, mos_into_deployment, plottype, value) %>%
+		group_by(mos_into_deployment, plottype) %>%
+		filter(n() >= 10) %>%
+		group_by(mos_into_deployment) %>%
+		filter(n_distinct(plottype) > 1) %>%
+		ungroup() %>%
+		# pivot_wider(names_from = plottype, values_from = value) %>%
+		# filter(if_all(c(meas, ref), ~ !is.na(.))) %>% # why do we need this?
+		# pivot_longer(cols = c(meas, ref), names_to = "plottype", values_to = "value") %>%
+		group_by(mos_into_deployment, plottype) %>%
+		select(-date) %>%
+		nest(data = c(value)) %>%
+		pivot_wider(names_from = plottype, values_from = data)
 	
 	divergence_by_month = mutate(.data=divergence_by_month,
 		density = map2(meas, ref, function(m,r) {
-			est_n = length(m$value)
+			meas_len = length(m$value)
+			ref_len = length(r$value)
+			est_n = min(c(meas_len, ref_len))
+			if (est_n<512) {
+				warning("Measurement or Reference distribution has <512 measurements; returning NA")
+				return(NA)
+			}
 			values = c(m$value, r$value)
 			est_grid = seq(
 				min(values, na.rm=TRUE), 
@@ -638,13 +629,16 @@ deployment_density_stats = function(
 			est_max = max(est_grid)
 			dm = density(m$value, from=est_min, to=est_max, n=est_n, na.rm=TRUE)
 			dr = density(r$value, from=est_min, to=est_max, n=est_n, na.rm=TRUE)
+			dm_normalized = dm$y/sum(dm$y)
+			dr_normalized = dr$y/sum(dr$y)
 			return(tibble(
 				x=est_grid, 
-				m=dm$y/sum(dm$y),
-				r=dr$y/sum(dr$y)
+				m=if_else(dm_normalized > .Machine$double.eps^0.25, dm_normalized, 0),
+				r=if_else(dr_normalized > .Machine$double.eps^0.25, dr_normalized, 0)
 			))
 		}),
 		KL = map_dbl(density, ~ {
+
 			distance(
 				x=t(as.matrix(select(.x, m, r))), 
 				method="kullback-leibler",
@@ -652,11 +646,14 @@ deployment_density_stats = function(
 			)
 		}),
 		hellinger = map_dbl(density, ~ {
-			distance(
+			dist = distance(
 				x=t(as.matrix(select(.x, m, r))), 
 				method="hellinger",
+				epsilon=0.1,
 				mute.message=TRUE
 			)
+			if (dist>1) {browser()}
+			return(dist)
 		}),
 		euclidean = map_dbl(density, ~ {
 			distance(
