@@ -167,18 +167,7 @@ for (meas_location_iter in c("washington")) {
         self_ref=FALSE
     )
 
-    png(filename=paste0(basepath,"extref/divergence_table_nofilter.png"), width=8.5, height=11, units="in", res=300)
-    grid.table(
-        co_unfiltered_deployment_pdf_stats_extref[[1]] %>% 
-            filter(statistic %in% c("KL", "hellinger", "euclidean")) %>%
-            pivot_wider(
-                names_from="statistic",
-                values_from="value"
-            ) %>%
-            select(-c(pdf_resolution, plottype)) %>%
-            drop_na(c("KL","hellinger","euclidean"))
-    )
-    dev.off()
+    write_csv(co_unfiltered_deployment_pdf_stats_extref[[1]], file=paste0(basepath,"extref/divergence_table_nofilter.csv"))
 
     # Plots for external reference, WITH meteorological filtering
     deployment_correlation(
@@ -221,18 +210,7 @@ for (meas_location_iter in c("washington")) {
         self_ref=FALSE
     )
 
-    png(filename=paste0(basepath,"extref/divergence_table_metfilter.png"), width=8.5, height=11, units="in", res=300)
-    grid.table(
-        co_filtered_deployment_pdf_stats_extref[[1]] %>% 
-            filter(statistic %in% c("KL", "hellinger", "euclidean")) %>%
-            pivot_wider(
-                names_from="statistic",
-                values_from="value"
-            ) %>%
-            select(-c(pdf_resolution, plottype)) %>%
-            drop_na(c("KL","hellinger","euclidean"))
-    )
-    dev.off()
+    write_csv(co_filtered_deployment_pdf_stats_extref[[1]], file=paste0(basepath, "extref/divergence_table_metfilter.csv"))
 
     metfilter_divergence_diff_by_opmonth_extref = 
         left_join(
@@ -290,18 +268,7 @@ for (meas_location_iter in c("washington")) {
         self_ref=TRUE
     )
 
-    png(filename=paste0(basepath,"intref/divergence_table_nofilter.png"), width=8.5, height=11, units="in", res=300)
-    grid.table(
-        co_unfiltered_deployment_pdf_stats_intref[[1]] %>% 
-            filter(statistic %in% c("KL", "hellinger", "euclidean")) %>%
-            pivot_wider(
-                names_from="statistic",
-                values_from="value"
-            ) %>%
-            select(-c(pdf_resolution, plottype)) %>%
-            drop_na(c("KL","hellinger","euclidean"))
-    )
-    dev.off()
+    write_csv(co_unfiltered_deployment_pdf_stats_intref[[1]], file=paste0(basepath, "intref/divergence_table_nofilter.csv"))
 
     # Plots for internal reference, WITH meteorological filtering
     deployment_correlation(
@@ -334,19 +301,7 @@ for (meas_location_iter in c("washington")) {
         self_ref=TRUE
     )
 
-    png(filename=paste0(basepath,"intref/divergence_table_metfilter.png"), width=8.5, height=11, units="in", res=300)
-    grid.table(
-        co_filtered_deployment_pdf_stats_intref[[1]] %>% 
-            filter(statistic %in% c("KL", "hellinger", "euclidean")) %>%
-            pivot_wider(
-                names_from="statistic",
-                values_from="value"
-            ) %>%
-            select(-c(pdf_resolution, plottype)) %>%
-            drop_na(c("KL","hellinger","euclidean"))
-    )
-    dev.off()
-
+    write_csv(co_filtered_deployment_pdf_stats_intref[[1]], file=paste0(basepath, "intref/divergence_table_metfilter.csv"))
 
     metfilter_divergence_diff_by_opmonth_intref = 
         left_join(

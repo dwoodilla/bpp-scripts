@@ -197,7 +197,7 @@ elongate_df = function(
 			by = c("sensor", "location")
 		) %>%
 		mutate(
-			sn_year = factor(if_else(month(date) == 12, year(date) + 1, year(date)), levels = 2018:2030),
+			sn_year = factor(if_else(month(date) == 12, year(date) + 1, year(date)), levels = 2015:2030),
 			season = factor(season(date), levels = c("Winter", "Spring", "Summer", "Fall")),
 			hours_into_sn = hours_into_season(date)
 		) %>%
@@ -446,8 +446,6 @@ deployment_corr_stat_lineplot = function(
 	ggsave(plot=patch, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
 }
 
-
-
 timeseries_deployment_residual = function(
 	deployment_data, 
 	filepath,
@@ -579,7 +577,7 @@ deployment_density_labeller = function(season_data, dep_months) {
 
 deployment_density_stats = function(
 	season_data,
-	log_eps_cutoff = 0.3
+	log_eps_cutoff = 0.25
 ) {
 	stats_by_month = season_data %>%
 		filter(plottype %in% c("meas","ref")) %>%
@@ -597,12 +595,12 @@ deployment_density_stats = function(
 		)
 	divergence_by_month = season_data %>%
 		filter(plottype %in% c("meas", "ref")) %>%
-		select(date, mos_into_deployment, plottype, value) %>%
-		group_by(mos_into_deployment, plottype) %>%
-		filter(n() >= 24*7) %>%
-		group_by(mos_into_deployment) %>%
-		filter(n_distinct(plottype) > 1) %>%
-		ungroup()
+		select(date, mos_into_deployment, plottype, value)
+		# group_by(mos_into_deployment, plottype) %>%
+		# filter(n() >= 24*7) %>%
+		# group_by(mos_into_deployment) %>%
+		# filter(n_distinct(plottype) > 1) %>%
+		# ungroup()
 	scale_in = divergence_by_month %>%
 		select(date, plottype, value) %>%
 		pivot_wider(
@@ -615,8 +613,8 @@ deployment_density_stats = function(
 	ref_scaled = scale(scale_in %>% pull(ref), center=meas_mean, scale=meas_sd)
 	scale_out = scale_in %>% 
 		mutate(
-			meas = meas_scaled,
-			ref  = ref_scaled
+			meas = (meas_scaled*50)+50,
+			ref  = (ref_scaled*50)+50
 		)
 	# print(head(scale_in))
 	# print(head(scale_out))
@@ -652,11 +650,11 @@ deployment_density_stats = function(
 
 	divergence_by_month = mutate(.data=divergence_by_month,
 		density = map2(meas, ref, function(m,r) {
-			meas_len = length(m$value)
-			ref_len = length(r$value)
+			meas_len = length(na.omit(m$value))
+			ref_len = length(na.omit(r$value))
 			est_n = min(c(meas_len, ref_len))
-			if (est_n<512) {
-				warning("Measurement or Reference distribution has <512 measurements; returning NA")
+			if (est_n<2) {
+				warning("Measurement or Reference has <2 observations; returning NA")
 				return(NA)
 			}
 			values = c(m$value, r$value)
@@ -667,6 +665,13 @@ deployment_density_stats = function(
 			)
 			est_min = min(est_grid)
 			est_max = max(est_grid)
+
+			safe_density = safely(
+				.f = function(x, from, to, n) {density(x=x, from=from, to=to, n=n, na.rm=TRUE)}
+			)
+			dm = safe_density(m$value, from=est_min, to=est_max, n=est_n)
+			dr = safe_density(r$value, from=est_min, to=est_max, n=est_n) # r$value us len 
+			if (!is.null(dm$error) | !is.null(dr$error)) {browser()}
 			dm = density(m$value, from=est_min, to=est_max, n=est_n, na.rm=TRUE)
 			dr = density(r$value, from=est_min, to=est_max, n=est_n, na.rm=TRUE)
 			dm_normalized = dm$y/sum(dm$y)
@@ -676,40 +681,46 @@ deployment_density_stats = function(
 				m=if_else(abs(dm_normalized) >= .Machine$double.eps^log_eps_cutoff, dm_normalized, 0),
 				r=if_else(abs(dr_normalized) >= .Machine$double.eps^log_eps_cutoff, dr_normalized, 0)
 			))
-		}),
+		}))
+	divergence_by_month = mutate(.data=divergence_by_month,
 		KL = map_dbl(density, ~ {
-			if(is.na(.x)) {return(NA)}
-			else { return(
+			if (all(is.na(.x))){ return(NA) }
+			else {return (
 				distance(
 					x=t(as.matrix(select(.x, m, r))), 
 					method="kullback-leibler",
 					mute.message=TRUE
 				)
-			)}
-		}),
+			) }
+		}))
+	divergence_by_month = mutate(.data=divergence_by_month,
 		hellinger = map_dbl(density, ~ {
-			if(is.na(.x)) {return(NA)}
-			else { 
-				dist = distance(
+			if (all(is.na(.x))){ return(NA) }
+			else {return (
+				distance(
 					x=t(as.matrix(select(.x, m, r))), 
 					method="hellinger",
-					mute.message=TRUE
+					mute.message=TRUE,
+					epsilon=0.1
 				)
-				if (dist>1) {browser()}
-				return(dist)
-			}
-		}),
+			) }
+		}))
+	divergence_by_month = mutate(.data=divergence_by_month,
 		euclidean = map_dbl(density, ~ {
-			if(is.na(.x)) {return(NA)}
-			else { return(
+			if (all(is.na(.x))){ return(NA) }
+			else {return (
 				distance(
 					x=t(as.matrix(select(.x, m, r))), 
 					method="euclidean",
 					mute.message=TRUE
 				)
-			)}
-		}),
-		pdf_resolution = map_dbl(density, ~ nrow(.x))
+			) }
+		}))
+	divergence_by_month = mutate(.data=divergence_by_month,
+		pdf_resolution = map_dbl(density, ~ {
+			if (is.null(nrow(.x))) {return(0)}
+			else {return(nrow(.x))}
+		})
 	)
 	divergence_by_month = rename(.data=divergence_by_month, obs_meas=meas, obs_ref=ref, pdf=density)
 
