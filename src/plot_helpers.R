@@ -6,6 +6,7 @@ library(checkmate)
 library(moments) # skew, kurtosis
 library(philentropy) # divergences
 library(patchwork)
+
 # library(statip) # alternative hellinger
 
 # Errors: rochambeaulib, zuccolo, smithhilllib, pema, rockspot
@@ -601,43 +602,43 @@ deployment_density_stats = function(
 		# group_by(mos_into_deployment) %>%
 		# filter(n_distinct(plottype) > 1) %>%
 		# ungroup()
-	scale_in = divergence_by_month %>%
-		select(date, plottype, value) %>%
-		pivot_wider(
-			names_from = plottype,
-			values_from = value
-	)
-	meas_scaled = scale(scale_in %>% pull(meas))
-	meas_mean = attr(meas_scaled, "scaled:center")
-	meas_sd = attr(meas_scaled, "scaled:scale")
-	ref_scaled = scale(scale_in %>% pull(ref), center=meas_mean, scale=meas_sd)
-	scale_out = scale_in %>% 
-		mutate(
-			meas = (meas_scaled*50)+50,
-			ref  = (ref_scaled*50)+50
-		)
-	# print(head(scale_in))
-	# print(head(scale_out))
+	# scale_in = divergence_by_month %>%
+	# 	select(date, plottype, value) %>%
+	# 	pivot_wider(
+	# 		names_from = plottype,
+	# 		values_from = value
+	# )
+	# meas_vec = scale_in %>% pull(meas)
+	# ref_vec  = scale_in %>% pull(ref)
+	# meas_scaled = if_else(meas_vec > 0, log10(meas_vec), 0)
+	# ref_scaled = if_else(ref_vec > 0, log10(ref_vec), 0)
+	# scale_out = scale_in %>% 
+	# 	mutate(
+	# 		meas = meas_scaled,
+	# 		ref  = ref_scaled
+	# 	)
+	# # print(head(scale_in))
+	# # print(head(scale_out))
+	# # print(head(divergence_by_month))
+	# divergence_by_month = divergence_by_month %>%
+	# 	pivot_wider(
+	# 		names_from = "plottype", 
+	# 		values_from = "value"
+	# 	) %>%
+	# 	left_join(
+	# 		y=scale_out,
+	# 		by="date",
+	# 		relationship="one-to-one"
+	# 	) %>%
+	# 	select(!c(meas.x, ref.x)) %>%
+	# 	rename(meas = meas.y, ref=ref.y) %>%
+	# 	pivot_longer(
+	# 		cols=c(meas, ref),
+	# 		names_to="plottype",
+	# 		values_to="value"
+	# 	)
 	# print(head(divergence_by_month))
-	divergence_by_month = divergence_by_month %>%
-		pivot_wider(
-			names_from = "plottype", 
-			values_from = "value"
-		) %>%
-		left_join(
-			y=scale_out,
-			by="date",
-			relationship="one-to-one"
-		) %>%
-		select(!c(meas.x, ref.x)) %>%
-		rename(meas = meas.y, ref=ref.y) %>%
-		pivot_longer(
-			cols=c(meas, ref),
-			names_to="plottype",
-			values_to="value"
-		)
-	# print(head(divergence_by_month))
-	# browser()
+	# # browser()
 	
 	divergence_by_month = divergence_by_month %>%
 		# pivot_wider(names_from = plottype, values_from = value) %>%
@@ -652,11 +653,15 @@ deployment_density_stats = function(
 		density = map2(meas, ref, function(m,r) {
 			meas_len = length(na.omit(m$value))
 			ref_len = length(na.omit(r$value))
-			est_n = min(c(meas_len, ref_len))
-			if (est_n<2) {
+			est_n = 128 #min(c(meas_len, ref_len))
+			if (meas_len<2 | ref_len<2) {
 				warning("Measurement or Reference has <2 observations; returning NA")
 				return(NA)
 			}
+			
+			# m$value = if_else(m$value>0, m$value, 1e-3)
+			# r$value = if_else(r$value>0, r$value, 1e-3)
+
 			values = c(m$value, r$value)
 			est_grid = seq(
 				min(values, na.rm=TRUE), 
@@ -666,16 +671,23 @@ deployment_density_stats = function(
 			est_min = min(est_grid)
 			est_max = max(est_grid)
 
+
 			safe_density = safely(
 				.f = function(x, from, to, n) {density(x=x, from=from, to=to, n=n, na.rm=TRUE)}
 			)
 			dm = safe_density(m$value, from=est_min, to=est_max, n=est_n)
-			dr = safe_density(r$value, from=est_min, to=est_max, n=est_n) # r$value us len 
-			if (!is.null(dm$error) | !is.null(dr$error)) {browser()}
+			dr = safe_density(r$value, from=est_min, to=est_max, n=est_n) 
+
+			if (!is.null(dm$error) | !is.null(dr$error)) {
+				warning("Attempted to calculate kernel density estimate but encountered error. Entering browser().")
+				browser()
+			}
+
 			dm = density(m$value, from=est_min, to=est_max, n=est_n, na.rm=TRUE)
 			dr = density(r$value, from=est_min, to=est_max, n=est_n, na.rm=TRUE)
 			dm_normalized = dm$y/sum(dm$y)
 			dr_normalized = dr$y/sum(dr$y)
+			# browser()
 			return(tibble(
 				x=est_grid, 
 				m=if_else(abs(dm_normalized) >= .Machine$double.eps^log_eps_cutoff, dm_normalized, 0),
