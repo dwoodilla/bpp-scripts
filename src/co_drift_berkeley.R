@@ -39,7 +39,7 @@ co_long_filtered = elongate_wrapper(
     filepath="./cache/beaco2n_berkeley_drift_long_metfiltered.csv"
 )
 
-for (meas_location_iter in c("rfs")) {
+for (meas_location_iter in c("washington")) {
     ref_location = "rfs"
     
     print(paste0("meas_location_iter: ", meas_location_iter))

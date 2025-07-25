@@ -578,7 +578,8 @@ deployment_density_labeller = function(season_data, dep_months) {
 }
 
 deployment_density_stats = function(
-	season_data
+	season_data,
+	log_eps_cutoff = 0.3
 ) {
 	stats_by_month = season_data %>%
 		filter(plottype %in% c("meas","ref")) %>%
@@ -598,10 +599,49 @@ deployment_density_stats = function(
 		filter(plottype %in% c("meas", "ref")) %>%
 		select(date, mos_into_deployment, plottype, value) %>%
 		group_by(mos_into_deployment, plottype) %>%
-		filter(n() >= 512) %>%
+		filter(n() >= 24*7) %>%
 		group_by(mos_into_deployment) %>%
 		filter(n_distinct(plottype) > 1) %>%
-		ungroup() %>%
+		ungroup()
+	scale_in = divergence_by_month %>%
+		select(date, plottype, value) %>%
+		pivot_wider(
+			names_from = plottype,
+			values_from = value
+	)
+	meas_scaled = scale(scale_in %>% pull(meas))
+	meas_mean = attr(meas_scaled, "scaled:center")
+	meas_sd = attr(meas_scaled, "scaled:scale")
+	ref_scaled = scale(scale_in %>% pull(ref), center=meas_mean, scale=meas_sd)
+	scale_out = scale_in %>% 
+		mutate(
+			meas = meas_scaled,
+			ref  = ref_scaled
+		)
+	# print(head(scale_in))
+	# print(head(scale_out))
+	# print(head(divergence_by_month))
+	divergence_by_month = divergence_by_month %>%
+		pivot_wider(
+			names_from = "plottype", 
+			values_from = "value"
+		) %>%
+		left_join(
+			y=scale_out,
+			by="date",
+			relationship="one-to-one"
+		) %>%
+		select(!c(meas.x, ref.x)) %>%
+		rename(meas = meas.y, ref=ref.y) %>%
+		pivot_longer(
+			cols=c(meas, ref),
+			names_to="plottype",
+			values_to="value"
+		)
+	# print(head(divergence_by_month))
+	# browser()
+	
+	divergence_by_month = divergence_by_month %>%
 		# pivot_wider(names_from = plottype, values_from = value) %>%
 		# filter(if_all(c(meas, ref), ~ !is.na(.))) %>% # why do we need this?
 		# pivot_longer(cols = c(meas, ref), names_to = "plottype", values_to = "value") %>%
@@ -609,7 +649,7 @@ deployment_density_stats = function(
 		select(-date) %>%
 		nest(data = c(value)) %>%
 		pivot_wider(names_from = plottype, values_from = data)
-	
+
 	divergence_by_month = mutate(.data=divergence_by_month,
 		density = map2(meas, ref, function(m,r) {
 			meas_len = length(m$value)
@@ -633,34 +673,41 @@ deployment_density_stats = function(
 			dr_normalized = dr$y/sum(dr$y)
 			return(tibble(
 				x=est_grid, 
-				m=if_else(dm_normalized > .Machine$double.eps^0.25, dm_normalized, 0),
-				r=if_else(dr_normalized > .Machine$double.eps^0.25, dr_normalized, 0)
+				m=if_else(abs(dm_normalized) >= .Machine$double.eps^log_eps_cutoff, dm_normalized, 0),
+				r=if_else(abs(dr_normalized) >= .Machine$double.eps^log_eps_cutoff, dr_normalized, 0)
 			))
 		}),
 		KL = map_dbl(density, ~ {
-
-			distance(
-				x=t(as.matrix(select(.x, m, r))), 
-				method="kullback-leibler",
-				mute.message=TRUE
-			)
+			if(is.na(.x)) {return(NA)}
+			else { return(
+				distance(
+					x=t(as.matrix(select(.x, m, r))), 
+					method="kullback-leibler",
+					mute.message=TRUE
+				)
+			)}
 		}),
 		hellinger = map_dbl(density, ~ {
-			dist = distance(
-				x=t(as.matrix(select(.x, m, r))), 
-				method="hellinger",
-				epsilon=0.1,
-				mute.message=TRUE
-			)
-			if (dist>1) {browser()}
-			return(dist)
+			if(is.na(.x)) {return(NA)}
+			else { 
+				dist = distance(
+					x=t(as.matrix(select(.x, m, r))), 
+					method="hellinger",
+					mute.message=TRUE
+				)
+				if (dist>1) {browser()}
+				return(dist)
+			}
 		}),
 		euclidean = map_dbl(density, ~ {
-			distance(
-				x=t(as.matrix(select(.x, m, r))), 
-				method="euclidean",
-				mute.message=TRUE
-			)
+			if(is.na(.x)) {return(NA)}
+			else { return(
+				distance(
+					x=t(as.matrix(select(.x, m, r))), 
+					method="euclidean",
+					mute.message=TRUE
+				)
+			)}
 		}),
 		pdf_resolution = map_dbl(density, ~ nrow(.x))
 	)
@@ -697,7 +744,7 @@ divergence_line_plot = function(
 	...
 ) {
 	if (self_ref) pdf_stats = filter(.data=pdf_stats, mos_into_deployment>=12)
-	else pdf_stats = filter(.data=pdf_stats, !is.na(value))
+	# else pdf_stats = filter(.data=pdf_stats, !is.na(value))
 
 	divergences_plot = 
 		ggplot(
