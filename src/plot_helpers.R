@@ -1,3 +1,4 @@
+library(plyr, include.only="round_any")
 library(tidyverse)
 library(sgolay)
 library(ggpmisc)
@@ -648,94 +649,178 @@ deployment_density_stats = function(
 		select(-date) %>%
 		nest(data = c(value)) %>%
 		pivot_wider(names_from = plottype, values_from = data)
+	print(head(divergence_by_month), width=Inf)
 
-	divergence_by_month = mutate(.data=divergence_by_month,
-		density = map2(meas, ref, function(m,r) {
-			meas_len = length(na.omit(m$value))
-			ref_len = length(na.omit(r$value))
-			est_n = 128 #min(c(meas_len, ref_len))
+	divergence_by_month = mutate(
+		.data=divergence_by_month,
+		density = map2(meas, ref, function(meas_arg, ref_arg) {
+			meas_arg$value[meas_arg$value<0] = 0
+			ref_arg$value[ref_arg$value<0] = 0
+
+			meas_len = length(na.omit(meas_arg$value))
+			ref_len = length(na.omit(ref_arg$value))
+
 			if (meas_len<2 | ref_len<2) {
 				warning("Measurement or Reference has <2 observations; returning NA")
 				return(NA)
 			}
+
+			est_n = min(c(meas_len, ref_len))
+			values = c(meas_arg$value, ref_arg$value)
 			
-			# m$value = if_else(m$value>0, m$value, 1e-3)
-			# r$value = if_else(r$value>0, r$value, 1e-3)
+			# est_grid = seq(
+			# 	floor(min(values)*100)/100,
+			# 	ceiling(max(values)/0.5)*0.5,
+			# 	by=0.05
+			# )
 
-			values = c(m$value, r$value)
 			est_grid = seq(
-				min(values, na.rm=TRUE), 
-				max(values, na.rm=TRUE), 
-				length.out=est_n
+				round_any(min(values), accuracy=0.05, f=floor),
+				round_any(max(values), accuracy=0.05, f=ceiling),
+				by=0.05
 			)
-			est_min = min(est_grid)
-			est_max = max(est_grid)
 
-
-			safe_density = safely(
-				.f = function(x, from, to, n) {density(x=x, from=from, to=to, n=n, na.rm=TRUE)}
-			)
-			dm = safe_density(m$value, from=est_min, to=est_max, n=est_n)
-			dr = safe_density(r$value, from=est_min, to=est_max, n=est_n) 
-
-			if (!is.null(dm$error) | !is.null(dr$error)) {
-				warning("Attempted to calculate kernel density estimate but encountered error. Entering browser().")
-				browser()
-			}
-
-			dm = density(m$value, from=est_min, to=est_max, n=est_n, na.rm=TRUE)
-			dr = density(r$value, from=est_min, to=est_max, n=est_n, na.rm=TRUE)
-			dm_normalized = dm$y/sum(dm$y)
-			dr_normalized = dr$y/sum(dr$y)
+			est_grid = est_grid[est_grid>=0]
+			if (length(na.omit(est_grid))<=1) {stop("Histogram est_grid has length<=1")}
+			# browser()
+			# print("values range:")
+			# print(c(min(values),max(values)))
+			# print("grid range:")
+			# print(c(min(est_grid), max(est_grid)))
+			h_meas = hist(meas_arg$value, breaks=est_grid, right=FALSE, plot=FALSE)
+			h_ref  = hist(ref_arg$value,  breaks=est_grid, right=FALSE, plot=FALSE)
 			# browser()
 			return(tibble(
-				x=est_grid, 
-				m=if_else(abs(dm_normalized) >= .Machine$double.eps^log_eps_cutoff, dm_normalized, 0),
-				r=if_else(abs(dr_normalized) >= .Machine$double.eps^log_eps_cutoff, dr_normalized, 0)
+				est_grid=est_grid[-length(est_grid)],
+				meas=h_meas$density,
+				ref=h_ref$density
 			))
 		}))
-	divergence_by_month = mutate(.data=divergence_by_month,
+	divergence_by_month = mutate(
+		.data = divergence_by_month,
 		KL = map_dbl(density, ~ {
-			if (all(is.na(.x))){ return(NA) }
-			else {return (
-				distance(
-					x=t(as.matrix(select(.x, m, r))), 
-					method="kullback-leibler",
-					mute.message=TRUE
-				)
-			) }
-		}))
-	divergence_by_month = mutate(.data=divergence_by_month,
-		hellinger = map_dbl(density, ~ {
-			if (all(is.na(.x))){ return(NA) }
-			else {return (
-				distance(
-					x=t(as.matrix(select(.x, m, r))), 
-					method="hellinger",
-					mute.message=TRUE,
-					epsilon=0.1
-				)
-			) }
-		}))
-	divergence_by_month = mutate(.data=divergence_by_month,
-		euclidean = map_dbl(density, ~ {
-			if (all(is.na(.x))){ return(NA) }
-			else {return (
-				distance(
-					x=t(as.matrix(select(.x, m, r))), 
-					method="euclidean",
-					mute.message=TRUE
-				)
-			) }
-		}))
-	divergence_by_month = mutate(.data=divergence_by_month,
-		pdf_resolution = map_dbl(density, ~ {
-			if (is.null(nrow(.x))) {return(0)}
-			else {return(nrow(.x))}
-		})
-	)
-	divergence_by_month = rename(.data=divergence_by_month, obs_meas=meas, obs_ref=ref, pdf=density)
+			if (any(is.na(.x))) {return(NA)}
+			P=.x$ref
+			Q=.x$meas
+			x=.x$est_grid
+			P[abs(P)<1e-6]=1e-6
+			Q[abs(Q)<1e-6]=1e-6
 
+			kl = sum((P*0.05)*log((P*0.05)/(Q*0.05)))
+			return(kl)
+		}))
+	divergence_by_month = mutate(
+		.data = divergence_by_month,
+		hellinger = map_dbl(density, ~ {
+			if (any(is.na(.x))) {return(NA)}
+			P=.x$ref
+			Q=.x$meas
+			x=.x$est_grid
+			P[abs(P)<1e-6]=0
+			Q[abs(Q)<1e-6]=0
+
+			hellinger = (1/sqrt(2))*norm(sqrt(P*0.05)-sqrt(Q*0.05), type="2")
+			return(hellinger)
+		}))
+	divergence_by_month = mutate(
+		.data = divergence_by_month,
+		euclidean = map_dbl(density, ~ {
+			if (any(is.na(.x))) {return(NA)}
+			P=.x$ref
+			Q=.x$meas
+			x=.x$est_grid
+			P[abs(P)<1e-6]=0
+			Q[abs(Q)<1e-6]=0
+
+			euclidean = sqrt(sum((P*0.05-Q*0.05)^2))
+			return(euclidean)
+		}))
+	# 	density = map2(meas, ref, function(m,r) {
+	# 		meas_len = length(na.omit(m$value))
+	# 		ref_len = length(na.omit(r$value))
+	# 		est_n = 128 #min(c(meas_len, ref_len))
+	# 		if (meas_len<2 | ref_len<2) {
+	# 			warning("Measurement or Reference has <2 observations; returning NA")
+	# 			return(NA)
+	# 		}
+			
+	# 		# m$value = if_else(m$value>0, m$value, 1e-3)
+	# 		# r$value = if_else(r$value>0, r$value, 1e-3)
+
+	# 		values = c(m$value, r$value)
+	# 		est_grid = seq(
+	# 			min(values, na.rm=TRUE), 
+	# 			max(values, na.rm=TRUE), 
+	# 			length.out=est_n
+	# 		)
+	# 		est_min = min(est_grid)
+	# 		est_max = max(est_grid)
+
+
+	# 		safe_density = safely(
+	# 			.f = function(x, from, to, n) {density(x=x, from=from, to=to, n=n, na.rm=TRUE)}
+	# 		)
+	# 		dm = safe_density(m$value, from=est_min, to=est_max, n=est_n)
+	# 		dr = safe_density(r$value, from=est_min, to=est_max, n=est_n) 
+
+	# 		if (!is.null(dm$error) | !is.null(dr$error)) {
+	# 			warning("Attempted to calculate kernel density estimate but encountered error. Entering browser().")
+	# 			browser()
+	# 		}
+
+	# 		dm = density(m$value, from=est_min, to=est_max, n=est_n, na.rm=TRUE)
+	# 		dr = density(r$value, from=est_min, to=est_max, n=est_n, na.rm=TRUE)
+	# 		dm_normalized = dm$y/sum(dm$y)
+	# 		dr_normalized = dr$y/sum(dr$y)
+	# 		# browser()
+	# 		return(tibble(
+	# 			x=est_grid, 
+	# 			m=if_else(abs(dm_normalized) >= .Machine$double.eps^log_eps_cutoff, dm_normalized, 0),
+	# 			r=if_else(abs(dr_normalized) >= .Machine$double.eps^log_eps_cutoff, dr_normalized, 0)
+	# 		))
+	# 	}))
+	# divergence_by_month = mutate(.data=divergence_by_month,
+	# 	KL = map_dbl(density, ~ {
+	# 		if (all(is.na(.x))){ return(NA) }
+	# 		else {return (
+	# 			distance(
+	# 				x=t(as.matrix(select(.x, m, r))), 
+	# 				method="kullback-leibler",
+	# 				mute.message=TRUE
+	# 			)
+	# 		) }
+	# 	}))
+	# divergence_by_month = mutate(.data=divergence_by_month,
+	# 	hellinger = map_dbl(density, ~ {
+	# 		if (all(is.na(.x))){ return(NA) }
+	# 		else {return (
+	# 			distance(
+	# 				x=t(as.matrix(select(.x, m, r))), 
+	# 				method="hellinger",
+	# 				mute.message=TRUE,
+	# 				epsilon=0.1
+	# 			)
+	# 		) }
+	# 	}))
+	# divergence_by_month = mutate(.data=divergence_by_month,
+	# 	euclidean = map_dbl(density, ~ {
+	# 		if (all(is.na(.x))){ return(NA) }
+	# 		else {return (
+	# 			distance(
+	# 				x=t(as.matrix(select(.x, m, r))), 
+	# 				method="euclidean",
+	# 				mute.message=TRUE
+	# 			)
+	# 		) }
+	# 	}))
+	# divergence_by_month = mutate(.data=divergence_by_month,
+	# 	pdf_resolution = map_dbl(density, ~ {
+	# 		if (is.null(nrow(.x))) {return(0)}
+	# 		else {return(nrow(.x))}
+	# 	})
+	# )
+	# divergence_by_month = rename(.data=divergence_by_month, obs_meas=meas, obs_ref=ref, pdf=density)
+	stop("CALLED STOP")
 	stats_by_month = 
 		stats_by_month %>% 
 		left_join(
