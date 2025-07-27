@@ -618,16 +618,16 @@ deployment_density_stats = function(
 
 			est_n = min(c(meas_len, ref_len))
 			values = c(meas_arg$value, ref_arg$value)
-			if (is.na(max(min(values), 0)) | is.na(max(values))) {
-				warning("min(values) or max(values) is NA, returning NA")
-				return(NA)
-			}
+
+			grid_from = max(min(values, na.rm=TRUE), 0)
+			grid_to = max(values, na.rm=TRUE)
+
+			if (is.na(grid_from) | is.na(grid_to)) { stop("grid_from or grid_to is NA") }
 			est_grid = seq(
-				round_any(max(min(values), 0), accuracy=bin_width, f=floor),
-				round_any(max(values), accuracy=bin_width, f=ceiling),
+				round_any(grid_from, accuracy=bin_width, f=floor),
+				round_any(grid_to, accuracy=bin_width, f=ceiling),
 				by=bin_width
 			)
-			# est_grid = est_grid[est_grid>=0]
 
 			if (length(na.omit(est_grid))<=1) {stop("Histogram est_grid has length<=1")}
 			h_meas = hist(meas_arg$value, breaks=est_grid, right=FALSE, plot=FALSE)
