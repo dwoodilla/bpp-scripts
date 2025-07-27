@@ -132,7 +132,7 @@ for (meas_location_iter in c("washington")) {
         season_data = co_unfiltered_plottable_extref,
         filepath=paste0(basepath, "extref/deployment_correlation_nofilter.png"),
         title="Deployment Time Series Correlation by Operating Month",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," RIDEM"),
+        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," Reference"),
         caption="meteorology=(no filter)  noise=\"original\"",
         x="Reference [CO] (ppm)",
         y="Measurement [CO] (ppm)"
@@ -141,7 +141,7 @@ for (meas_location_iter in c("washington")) {
         deployment_data = co_unfiltered_plottable_deployment_extref,
         filepath=paste0(basepath, "extref/deployment_corrstats_nofilter.png"),
         title="Deployment Correlation Statistics by Operating Month",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," RIDEM"),
+        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," Reference"),
         caption="meteorology=(no filter)  noise=\"original\"",
         x="Months deployed",
         y="Statistic value"
@@ -151,7 +151,7 @@ for (meas_location_iter in c("washington")) {
         season_data=co_unfiltered_plottable_extref,
         filepath=paste0(basepath, "extref/deployment_pdfs_nofilter.png"),
         title="Deployment Probability Density Functions by Operating Month",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," RIDEM"),
+        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," Reference"),
         caption="meteorology=(no filter)  noise=\"original\"",
         x="[CO] (ppm)",
         y=TeX("$\\frac{d (Cumulative\\_density)}{d[CO]}=pdf$")
@@ -160,7 +160,7 @@ for (meas_location_iter in c("washington")) {
         pdf_stats=co_unfiltered_deployment_pdf_stats_extref[[1]],
         filepath=paste0(basepath,"extref/divergence_line_plot_nofilter.png"),
         title="Divergence Statistics over Months Deployed",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," RIDEM"),
+        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," Reference"),
         caption="meteorology=(no filter)  noise=\"original\"",
         x="Months Deployed",
         y="Statistic value",
@@ -175,7 +175,7 @@ for (meas_location_iter in c("washington")) {
         season_data=co_filtered_plottable_extref,
         filepath=paste0(basepath,"extref/deployment_correlation_metfilter.png"),
         title="Deployment Time Series Correlation by Operating Month",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," RIDEM"),
+        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," Reference"),
         caption="meteorology=(t<30C, rh<0.75)  noise=\"original\"",
         x="Reference [CO] (ppm)",
         y="Measurement [CO] (ppm)"
@@ -184,7 +184,7 @@ for (meas_location_iter in c("washington")) {
         deployment_data = co_filtered_plottable_deployment_extref,
         filepath=paste0(basepath,"extref/deployment_corrstats_metfilter.png"),
         title="Deployment Correlation Statistics by Operating Month",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," RIDEM"),
+        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," Reference"),
         caption="meteorology=(no filter)  noise=\"original\"",
         x="Months deployed",
         y="Statistic value"
@@ -194,7 +194,7 @@ for (meas_location_iter in c("washington")) {
         season_data=co_filtered_plottable_extref,
         filepath=paste0(basepath,"extref/deployment_pdfs_metfilter.png"),
         title="Deployment Probability Density Functions by Operating Month",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," RIDEM"),
+        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," Reference"),
         caption="meteorology=(t<30C, rh<0.75)  noise=\"original\"",
         x="[CO] (ppm)",
         y=TeX("$\\frac{d (Cumulative\\_density)}{d[CO]}=pdf$")
@@ -203,7 +203,7 @@ for (meas_location_iter in c("washington")) {
         pdf_stats=co_filtered_deployment_pdf_stats_extref[[1]],
         filepath=paste0(basepath,"extref/divergence_line_plot_metfilter.png"),
         title="Divergence Statistics over Months Deployed",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," RIDEM"),
+        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," Reference"),
         caption="meteorology=(t<30C, rh<0.75)  noise=\"original\"",
         x="Months Deployed",
         y="Statistic value",
@@ -228,10 +228,10 @@ for (meas_location_iter in c("washington")) {
     divergence_line_plot(
         pdf_stats = metfilter_divergence_diff_by_opmonth_extref,
         filepath=paste0(basepath,"extref/metfilter_divergence_difference.png"),
-        lims_y=c(-0.33,0.33),
+        # lims_y=c(-0.33,0.33),
         self_ref=FALSE,
         title="Change in Divergence after Meteorological Filtering",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," RIDEM"),
+        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," Reference"),
         caption="meteorology=NA, noise=\"original\"",
         y="Meteorologically Filtered Statistic - Non-filtered Statistic",
         x="Months into Deployment"
@@ -243,7 +243,7 @@ for (meas_location_iter in c("washington")) {
         season_data = co_unfiltered_plottable_intref,
         filepath=paste0(basepath,"intref/deployment_correlation_nofilter.png"),
         title="Deployment Time Series Correlation by Operating Month",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ",toupper(meas_location_iter)," BEACO2N at Operating-year 1"),
+        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs.\n",toupper(meas_location_iter)," BEACO2N at Operating-year 1"),
         caption="meteorology=(no filter)  noise=\"original\"",
         x="Reference [CO] (ppm)",
         y="Measurement [CO] (ppm)"
@@ -252,7 +252,7 @@ for (meas_location_iter in c("washington")) {
         season_data=co_unfiltered_plottable_intref,
         filepath=paste0(basepath,"intref/deployment_pdfs_nofilter.png"),
         title="Deployment Probability Density Functions by Operating Month",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ",toupper(meas_location_iter)," BEACO2N at Operating-year 1"),
+        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs.\n",toupper(meas_location_iter)," BEACO2N at Operating-year 1"),
         caption="meteorology=(no filter)  noise=\"original\"",
         x="[CO] (ppm)",
         y=TeX("$\\frac{d (Cumulative\\_density)}{d[CO]}=pdf$")
@@ -261,7 +261,7 @@ for (meas_location_iter in c("washington")) {
         pdf_stats=co_unfiltered_deployment_pdf_stats_intref[[1]],
         filepath=paste0(basepath,"intref/divergence_line_plot_nofilter.png"),
         title="Divergence Statistics over Months Deployed",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ",toupper(meas_location_iter)," BEACO2N at Operating-year 1"),
+        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs.\n",toupper(meas_location_iter)," BEACO2N at Operating-year 1"),
         caption="meteorology=(no filter)  noise=\"original\"",
         x="Months Deployed",
         y="Statistic value",
@@ -276,7 +276,7 @@ for (meas_location_iter in c("washington")) {
         season_data = co_filtered_plottable_intref,
         filepath=paste0(basepath,"intref/deployment_correlation_metfilter.png"),
         title="Deployment Time Series Correlation by Operating Month",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ",toupper(meas_location_iter)," BEACO2N at Operating-year 1"),
+        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs.\n",toupper(meas_location_iter)," BEACO2N at Operating-year 1"),
         caption="meteorology=(t<30C, rh<0.75)  noise=\"original\"",
         x="Reference [CO] (ppm)",
         y="Measurement [CO] (ppm)"
@@ -285,7 +285,7 @@ for (meas_location_iter in c("washington")) {
         season_data=co_filtered_plottable_intref,
         filepath=paste0(basepath,"intref/deployment_pdfs_metfilter.png"),
         title="Deployment Probability Density Functions by Operating Month",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ",toupper(meas_location_iter)," BEACO2N at Operating-year 1"),
+        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs.\n",toupper(meas_location_iter)," BEACO2N at Operating-year 1"),
         caption="meteorology=(t<30C, rh<0.75)  noise=\"original\"",
         x="[CO] (ppm)",
         y=TeX("$\\frac{d (Cumulative\\_density)}{d[CO]}=pdf$")
@@ -294,7 +294,7 @@ for (meas_location_iter in c("washington")) {
         pdf_stats=co_filtered_deployment_pdf_stats_intref[[1]],
         filepath=paste0(basepath,"intref/divergence_line_plot_metfilter.png"),
         title="Divergence Statistics over Months Deployed",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ",toupper(meas_location_iter)," BEACO2N at Operating-year 1"),
+        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs.\n",toupper(meas_location_iter)," BEACO2N at Operating-year 1"),
         caption="meteorology=(t<30C, rh<0.75)  noise=\"original\"",
         x="Months Deployed",
         y="Statistic value",
@@ -319,10 +319,10 @@ for (meas_location_iter in c("washington")) {
     divergence_line_plot(
         pdf_stats = metfilter_divergence_diff_by_opmonth_intref,
         filepath=paste0(basepath,"intref/metfilter_divergence_difference.png"),
-        lims_y=c(-0.33,0.33),
+        # lims_y=c(-0.33,0.33),
         self_ref=FALSE,
         title="Change in Divergence after Meteorological Filtering",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ",toupper(meas_location_iter)," BEACO2N at Operating-year 1"),
+        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs.\n",toupper(meas_location_iter)," BEACO2N at Operating-year 1"),
         caption="meteorology=NA, noise=\"original\"",
         y="Meteorologically Filtered Statistic - Non-filtered Statistic",
         x="Months into Deployment"

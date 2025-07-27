@@ -108,7 +108,8 @@ arrange_season_data = function(
 		warning("Dropping rows of plot data with NA faceting variables.")
 		plot_data = plot_data %>% filter(!is.na(sn_year), !is.na(season))
 	}
-	return(plot_data %>% filter(!is.na(value)))
+	# return(plot_data %>% filter(!is.na(value)))
+	return(plot_data)
 }
 
 arrange_deployment_data = function(
@@ -358,7 +359,6 @@ deployment_correlation = function(
 	filepath,
 	...
 ) {
-	# browser()
 	residual_plot = 
 		ggplot(
 			data=deployment_data,
@@ -391,6 +391,8 @@ deployment_corr_stat_lineplot = function(
 	filepath,
 	...
 ) {
+	deployment_mos_range = deployment_data %>% pull(mos_into_deployment) %>% range(na.rm=TRUE)
+	deployment_mos_range = seq(deployment_mos_range[1], deployment_mos_range[2], by=1)
 	month_stats = deployment_data %>%
 		group_by(mos_into_deployment) %>%
 		summarize(
@@ -406,10 +408,15 @@ deployment_corr_stat_lineplot = function(
 			cols = -mos_into_deployment,
 			names_to = "statistic",
 			values_to = "value"
+		) %>%
+		complete(
+			mos_into_deployment=deployment_mos_range, 
+			statistic=c("R^2","Pearson_R","mean_residual","median_residual","residual_kurtosis","residual_skewness")
 		)
+	# browser()
 	month_corr_stats_lineplot = 
 		ggplot(
-			data = month_stats %>% filter(!(statistic %in% c("residual_kurtosis","residual_skewness")), !is.na(value)),
+			data = month_stats %>% filter(!(statistic %in% c("residual_kurtosis","residual_skewness"))),
 			mapping=aes(
 				x=mos_into_deployment,
 				y=value,
@@ -573,8 +580,8 @@ deployment_density_labeller = function(season_data, dep_months) {
 			paste0(mos_into_deployment, ": Insufficient Information"),
 			label
 		))
-	vec = t(setNames(label_stats$label, label_stats$mos_into_deployment))
-	return(vec)
+	ret = t(setNames(label_stats$label, label_stats$mos_into_deployment))
+	return(ret)
 }
 
 deployment_density_stats = function(
@@ -583,6 +590,11 @@ deployment_density_stats = function(
 	log_eps_cutoff = 0.383
 ) {
 	eps_cutoff = .Machine$double.eps^log_eps_cutoff
+	mos_range = season_data %>% 
+    	pull(mos_into_deployment) %>% 
+    	range(na.rm = TRUE)
+	all_mos = seq(mos_range[1], mos_range[2])
+
 	stats_by_month = season_data %>%
 		filter(plottype %in% c("meas","ref")) %>%
 		group_by(mos_into_deployment, plottype) %>%
@@ -596,8 +608,10 @@ deployment_density_stats = function(
 			id_cols=mos_into_deployment,
 			names_from=plottype,
 			values_from=c(mean,sd,kurtosis,skewness)
-		)
-
+		) %>%
+		ungroup() %>%
+		complete(mos_into_deployment=all_mos)
+		
 	divergence_by_month = season_data %>%
 		filter(plottype %in% c("meas", "ref")) %>%
 		select(date, mos_into_deployment, plottype, value)
@@ -623,13 +637,16 @@ deployment_density_stats = function(
 
 			est_n = min(c(meas_len, ref_len))
 			values = c(meas_arg$value, ref_arg$value)
-
+			if (is.na(max(min(values), 0)) | is.na(max(values))) {
+				warning("min(values) or max(values) is NA, returning NA")
+				return(NA)
+			}
 			est_grid = seq(
-				round_any(min(values), accuracy=bin_width, f=floor),
+				round_any(max(min(values), 0), accuracy=bin_width, f=floor),
 				round_any(max(values), accuracy=bin_width, f=ceiling),
 				by=bin_width
 			)
-			est_grid = est_grid[est_grid>=0]
+			# est_grid = est_grid[est_grid>=0]
 
 			if (length(na.omit(est_grid))<=1) {stop("Histogram est_grid has length<=1")}
 			h_meas = hist(meas_arg$value, breaks=est_grid, right=FALSE, plot=FALSE)
@@ -673,7 +690,7 @@ deployment_density_stats = function(
 			P[abs(P)<eps_cutoff]=0
 			Q[abs(Q)<eps_cutoff]=0
 
-			euclidean = sqrt(sum((P*bin_width-Q*bin_width)^2))
+			euclidean = sqrt(sum((P-Q)^2))
 			return(euclidean)
 		}))
 	divergence_by_month = mutate(
@@ -683,7 +700,9 @@ deployment_density_stats = function(
 			~{ if (length(nrow(.x))==0) {return(0)} else {return(nrow(.x))} }
 		)
 	)
-	divergence_by_month = rename(.data=divergence_by_month, obs_meas=meas, obs_ref=ref, pdf=density)
+	divergence_by_month = rename(.data=divergence_by_month, obs_meas=meas, obs_ref=ref, pdf=density) %>%
+		ungroup() %>%
+		complete(mos_into_deployment=all_mos)
 
 	stats_by_month = 
 		stats_by_month %>% 
@@ -711,7 +730,7 @@ divergence_line_plot = function(
 	pdf_stats,
 	filepath,
 	self_ref=FALSE,
-	lims_y=c(0,1),
+	lims_y=c(-2,2),
 	...
 ) {
 	if (self_ref) pdf_stats = filter(.data=pdf_stats, mos_into_deployment>=12)
@@ -730,7 +749,7 @@ divergence_line_plot = function(
 			)
 		) +
 		geom_line() + theme_bw() +
-		coord_cartesian(ylim=c(-1,1)) +
+		coord_cartesian(ylim=lims_y) +
 		scale_x_continuous(
 			breaks = seq(
 				from = min(pdf_stats$mos_into_deployment),
