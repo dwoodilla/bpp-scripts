@@ -44,14 +44,16 @@ elongate_df = function(
         df_long = read_csv(cache_file)
     } else {
 		dods = dates_of_deployment(df=df, parameters=parameters, sensors=sensors)
-        df_long = df %>%
-			filter(parameter %in% c(parameters, "temp","rh"), sensor %in% sensors) %>%
+        df_long = df %>% filter(parameter %in% c(parameters, "temp","rh"), sensor %in% sensors) 
+		df_long = df_long %>% 
 			mutate(
 				sn_year = factor(if_else(month(date) == 12, year(date) + 1, year(date)), levels = 2000:2030),
-				season = factor(season(date), levels = c("winter", "spring", "summer", "fall")),
+				season = factor(season(date), levels = c("Winter", "Spring", "Summer", "Fall")),
 				hours_into_sn = hours_into_season(date)
-			) %>%
-			left_join(y=dods, by = c("sensor", "location"), relationship="many-to-one") %>%
+			) 
+		df_long = df_long %>% 
+			left_join(y=dods, by = c("sensor", "location"), relationship="many-to-one") 
+		df_long = df_long %>% 
 			mutate(
 				mos_into_deployment = interval(deployment_start, date) %/% months(1),
 				hrs_into_deployment = interval(deployment_start, date) %/% hours(1),
@@ -78,6 +80,11 @@ elongate_df = function(
 						.cols = any_of(c("co","pm25","pm01","pm10","pm")), # want to change this to refer to parameters argument at some point
 						.fns = ~ if_else(met_flag, NA, .x)
 					)
+				) %>% select(-met_flag) %>%
+				pivot_longer(
+					cols=any_of(c("co","pm25","pm01","pm10","pm")),
+					names_to="parameter",
+					values_to="value"
 				)
 		}
         write_csv(x=df_long, file=cache_file, col_names=TRUE, append=FALSE)
@@ -94,6 +101,9 @@ arrange_plot_df = function(
 	ref_sensor, 
 	ref_location
 ) {
+	# if (!("parameter" %in% colnames(dataset))){
+	# 	browser()
+	# }
 	dataset = dataset %>% filter(parameter==parameter_arg)
 
 	plot_data = filter(.data=dataset, sensor==meas_sensor, location==meas_location) 
@@ -145,6 +155,9 @@ arrange_plot_df = function(
 	if (any(is.na(plot_data$sn_year)) | any(is.na(plot_data$season))) {
 		warning("Dropping rows of plot data with NA faceting variables.")
 		plot_data = plot_data %>% filter(!is.na(sn_year), !is.na(season))
+	} # DEBUG : season is always NA causing all rows to be filtered out.
+	if (nrow(as.matrix(plot_data))==0) {
+		print("bp")
 	}
 	return(plot_data)
 }
@@ -575,6 +588,9 @@ deployment_density_stats = function(
 	mos_range = plot_df %>% 
     	pull(mos_into_deployment) %>% 
     	range(na.rm = TRUE)
+	if (is.infinite(mos_range[1]) | is.infinite(mos_range[2])) {
+		browser()
+	}
 	all_mos = seq(mos_range[1], mos_range[2])
 
 	stats_by_month = plot_df %>%

@@ -16,7 +16,7 @@ co = elongate_df(
     parameters = c("co"),
     sensors = c("beaco2n","super"),
     read_from_cache = FALSE, 
-    cache_file="nmt.csv"
+    cache_file="cache/nmt.csv"
 )
 co_met = elongate_df(
     df = co_imp,
@@ -24,7 +24,7 @@ co_met = elongate_df(
     sensors = c("beaco2n","super"),
     meteorology = c(30,75),
     read_from_cache = FALSE,
-    cache_file="met.csv"
+    cache_file="cache/met.csv"
 )
 
 for (meas_location_iter in c("washington")) {
