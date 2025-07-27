@@ -10,6 +10,8 @@ source("./clean/import_cleaned.R")
 source("./src/plot_helpers.R")
 
 co = import_co(city="berkeley")
+write_csv(co, "test.csv")
+stop()
 
 co_dod = dates_of_deployment(df=co, parameter_arg="co", sensors=c("beaco2n","super"))
 co_filtered = co %>% 
