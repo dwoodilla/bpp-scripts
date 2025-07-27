@@ -15,16 +15,16 @@ co = elongate_df(
     df = co_imp,
     parameters = c("co"),
     sensors = c("beaco2n","super"),
-    read_from_cache = TRUE,
-    cache_file="out.csv"
+    read_from_cache = FALSE, 
+    cache_file="nmt.csv"
 )
 co_met = elongate_df(
     df = co_imp,
     parameters = c("co"),
     sensors = c("beaco2n","super"),
     meteorology = c(30,75),
-    read_from_cache = TRUE,
-    cache_file="out.csv"
+    read_from_cache = FALSE,
+    cache_file="met.csv"
 )
 
 for (meas_location_iter in c("washington")) {
@@ -67,6 +67,7 @@ for (meas_location_iter in c("washington")) {
     for (ref_type in c("ext", "int")) {
         for (met_type in c("nofilter", "metfilter")) {
             df_key = ifelse(met_type == "nofilter", ref_type, paste0(ref_type,"_met"))
+            print(df_key)
             pdf_key = df_key
             cfg = plot_cfgs[[ref_type]]
             met_cfg = met_cfgs[[met_type]]

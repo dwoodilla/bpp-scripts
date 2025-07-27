@@ -34,13 +34,13 @@ elongate_df = function(
 	met_filter = FALSE
 	if (!missing(meteorology)) {
 		if (length(meteorology)!=2) {
-			stop("Length of meteorology arg must be 2 if provided [ i.e., c(temp,rh) ]")
+			stop("length of meteorology arg must be 2 if provided [ i.e., c(temp,rh) ]")
 		}
 		met_filter = TRUE
 	}
 	df_long = tibble()
     if (read_from_cache & file.exists(cache_file)) {
-		if(missing(cache_file)) {stop("read_from_cache==TRUE but missing cache file.")}
+		if(missing(cache_file)) {stop("read_from_cache==true but missing cache file.")}
         df_long = read_csv(cache_file)
     } else {
 		dods = dates_of_deployment(df=df, parameters=parameters, sensors=sensors)
@@ -48,7 +48,7 @@ elongate_df = function(
 			filter(parameter %in% c(parameters, "temp","rh"), sensor %in% sensors) %>%
 			mutate(
 				sn_year = factor(if_else(month(date) == 12, year(date) + 1, year(date)), levels = 2000:2030),
-				season = factor(season(date), levels = c("Winter", "Spring", "Summer", "Fall")),
+				season = factor(season(date), levels = c("winter", "spring", "summer", "fall")),
 				hours_into_sn = hours_into_season(date)
 			) %>%
 			left_join(y=dods, by = c("sensor", "location"), relationship="many-to-one") %>%
@@ -58,10 +58,11 @@ elongate_df = function(
 				hrs_into_deployment_month = interval(
 					deployment_start %m+% months(mos_into_deployment),
 					date,
-					tz="UTC"
+					tz="utc"
 				) %/% hours(1)
 			) %>% 
 			filter(hrs_into_deployment >= 0)
+		# browser()
 		if (met_filter) {
 			df_long = df_long %>%
 				group_by(sensor, location) %>%
@@ -74,7 +75,7 @@ elongate_df = function(
 				) %>%
 				mutate(
 					across(
-						.cols = any_of("co","pm25","pm01","pm10","pm"), # want to change this to refer to parameters argument at some point
+						.cols = any_of(c("co","pm25","pm01","pm10","pm")), # want to change this to refer to parameters argument at some point
 						.fns = ~ if_else(met_flag, NA, .x)
 					)
 				)
