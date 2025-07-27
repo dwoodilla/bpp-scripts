@@ -539,8 +539,9 @@ deployment_density = function(
 }
 
 deployment_density_labeller = function(season_data, dep_months) {
-	label_stats = season_data %>%
-		select(plottype, mos_into_deployment, date) %>%
+	label_stats = season_data
+	label_stats = label_stats %>% select(plottype, mos_into_deployment, date)
+	label_stats = label_stats %>% 
 		group_by(plottype, mos_into_deployment) %>%
 		summarize(
 			n=n(),
@@ -548,12 +549,14 @@ deployment_density_labeller = function(season_data, dep_months) {
 			mo_max = month(max(date), label=TRUE, abbr=TRUE),
 			yr_min = year(min(date)),
 			yr_max = year(max(date))
-		) %>%
-		ungroup() %>%
+		) %>% ungroup()
+
+	label_stats = label_stats %>% 
 		pivot_wider(
 			names_from="plottype",
 			values_from="n"
-		) %>%
+		) 
+	label_stats = label_stats %>% 
 		mutate(
 			label= if_else(
 				yr_min==yr_max,
@@ -570,11 +573,18 @@ deployment_density_labeller = function(season_data, dep_months) {
 					" r=", ref, " m=", meas
 				)
 			) 
-		) %>% 
+		) 
+	label_stats = label_stats %>% 
 		select(mos_into_deployment, label) %>%
 		complete(
 			mos_into_deployment = full_seq(mos_into_deployment, 1)
-		) %>%
+		) 
+
+	if (any(is.na(label_stats %>% pull(label)))) {
+		print(label_stats %>% filter(is.na(label)))
+		print("bp")
+	}
+	label_stats = label_stats %>% 
 		mutate(label = if_else(
 			is.na(label),
 			paste0(mos_into_deployment, ": Insufficient Information"),
