@@ -35,7 +35,6 @@ deployment_correlation = function(
 				}
 			)
 		) +
-		# stat_poly_line() + stat_poly_eq() +
 		geom_abline(slope=1, intercept=0, color="red") +
 		geom_point(alpha=0.05) + 
 		labs(...)
@@ -125,7 +124,6 @@ divergence_line_plot = function(
 	...
 ) {
 	if (self_ref) pdf_stats = filter(.data=pdf_stats, mos_into_deployment>=12)
-	# else pdf_stats = filter(.data=pdf_stats, !is.na(value))
 
 	divergences_plot = 
 		ggplot(
@@ -134,12 +132,10 @@ divergence_line_plot = function(
 			),
 			mapping=aes(
 				x=mos_into_deployment,
-				y=value,
-				shape=statistic,
-				color=statistic
+				y=value
 			)
-		) +
-		geom_line() + theme_bw() +
+		) + facet_wrap(vars(statistic)) +
+		geom_step() + theme_bw() +
 		coord_cartesian(ylim=lims_y) +
 		scale_x_continuous(
 			breaks = seq(
@@ -148,7 +144,9 @@ divergence_line_plot = function(
 				by   = 6
 			)
 		) +
+		scale_y_continuous( breaks = seq(from=-2, to=2, by=0.2) ) +
+		geom_hline(yintercept = 0, color="red") +
 		labs(...)
 
-	ggsave(plot=divergences_plot, filename=filepath, width=5, height=5, units="in", dpi=300, create.dir=TRUE)
+	ggsave(plot=divergences_plot, filename=filepath, width=7, height=5, units="in", dpi=300, create.dir=TRUE)
 }

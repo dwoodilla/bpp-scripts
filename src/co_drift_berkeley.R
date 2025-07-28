@@ -29,7 +29,7 @@ co_met = elongate_df(
     cache_file="cache/beaco2n_berkeley_co_drift_long_metfilter.csv"
 )
 
-for (meas_location_iter in c("rfs")) {
+for (meas_location_iter in beaco2n_berkeley_site_list) {
     ref_location = "rfs"
     basepath = paste0("./plots/berkeley_co_drift/",meas_location_iter,"/")
     print(paste0("meas_location_iter: ", meas_location_iter))
@@ -62,15 +62,13 @@ for (meas_location_iter in c("rfs")) {
 
     # Meteorology filter configs
     met_cfgs = list(
-        nofilter = list(suffix = "nofilter", caption = "meteorology=(no filter)  noise=\"original\"", met = FALSE),
-        metfilter = list(suffix = "metfilter", caption = "meteorology=(t<30C, rh<0.75)  noise=\"original\"", met = TRUE)
+        nofilter = list(suffix = "nofilter", caption = "meteorology=(no filter)", met = FALSE),
+        metfilter = list(suffix = "metfilter", caption = "meteorology=(t<30C, rh<0.75)", met = TRUE)
     )
 
     # Loop over external/internal, and met/no-met
     for (ref_type in c("ext", "int")) {
         for (met_type in c("nofilter", "metfilter")) {
-    # for (ref_type in c("ext")) {
-    #     for (met_type in c("metfilter")) {
             df_key = ifelse(met_type == "nofilter", ref_type, paste0(ref_type,"_met"))
             print(df_key)
             pdf_key = df_key
@@ -79,31 +77,26 @@ for (meas_location_iter in c("rfs")) {
             plot_df = df_list[[df_key]]
             pdf_stats = pdf_list[[pdf_key]][[1]]
 
-            # # Correlation plot (skip for int_met)
-            # if (!(ref_type == "int" && met_type == "metfilter")) {
-                deployment_correlation(
-                    plot_df = plot_df,
-                    filepath = paste0(basepath, cfg$folder, "deployment_correlation_", met_cfg$suffix, ".png"),
-                    title = "Deployment Time Series Correlation by Operating Month",
-                    subtitle = cfg$subtitle,
-                    caption = met_cfg$caption,
-                    x = "Reference [CO] (ppm)",
-                    y = "Measurement [CO] (ppm)"
-                )
-            # }
+            deployment_correlation(
+                plot_df = plot_df,
+                filepath = paste0(basepath, cfg$folder, "deployment_correlation_", met_cfg$suffix, ".png"),
+                title = "Deployment Time Series Correlation by Operating Month",
+                subtitle = cfg$subtitle,
+                caption = met_cfg$caption,
+                x = "Reference [CO] (ppm)",
+                y = "Measurement [CO] (ppm)"
+            )
 
-            # Correlation stats plot (skip for int)
-            # if (ref_type == "ext") {
-                deployment_corr_stat_lineplot(
-                    plot_df = plot_df,
-                    filepath = paste0(basepath, cfg$folder, "deployment_corrstats_", met_cfg$suffix, ".png"),
-                    title = "Deployment Correlation Statistics by Operating Month",
-                    subtitle = cfg$subtitle,
-                    caption = met_cfg$caption,
-                    x = "Months deployed",
-                    y = "Statistic value"
-                )
-            # }
+            deployment_corr_stat_lineplot(
+                plot_df = plot_df,
+                plot_filepath = paste0(basepath, cfg$folder, "deployment_corrstats_", met_cfg$suffix, ".png"),
+                csv_filepath = paste0(basepath, cfg$folder, "deployment_corrstats_", met_cfg$suffix, ".csv"),
+                title = "Deployment Correlation Statistics by Operating Month",
+                subtitle = cfg$subtitle,
+                caption = met_cfg$caption,
+                x = "Months deployed",
+                y = "Statistic value"
+            )
 
             # Density plot
             deployment_density(

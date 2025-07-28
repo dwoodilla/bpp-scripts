@@ -185,9 +185,11 @@ violin_deployment_residual = function(
 
 deployment_corr_stat_lineplot = function(
 	plot_df,
-	filepath,
+	plot_filepath,
+	csv_filepath,
 	...
 ) {
+	args = list(...)
 	wide_plot_df = wide_plot_df_helper(plot_df)
 	deployment_mos_range = wide_plot_df %>% pull(mos_into_deployment) %>% range(na.rm=TRUE)
 	deployment_mos_range = seq(deployment_mos_range[1], deployment_mos_range[2], by=1)
@@ -202,6 +204,9 @@ deployment_corr_stat_lineplot = function(
 			residual_skewness = skewness(resid, na.rm=TRUE)
 		) %>%
 		ungroup() %>%
+		write_csv(file=csv_filepath)
+
+	month_stats = month_stats %>%
 		pivot_longer(
 			cols = -mos_into_deployment,
 			names_to = "statistic",
@@ -211,16 +216,15 @@ deployment_corr_stat_lineplot = function(
 			mos_into_deployment=deployment_mos_range, 
 			statistic=c("R^2","RMSE","MBE","Median_Bias_Error","residual_kurtosis","residual_skewness")
 		)
-	month_corr_stats_lineplot = 
+	month_R2_lineplot = 
 		ggplot(
-			data = month_stats %>% filter(!(statistic %in% c("residual_kurtosis","residual_skewness"))),
+			data = month_stats %>% filter(statistic=="R^2"),
 			mapping=aes(
 				x=mos_into_deployment,
-				y=value,
-				color=statistic
+				y=value
 			)
 		) + 
-		geom_line() +
+		geom_step() +
 		scale_x_continuous(
 			breaks = seq(
 				from = min(month_stats$mos_into_deployment),
@@ -229,20 +233,28 @@ deployment_corr_stat_lineplot = function(
 			)
 		) +
 		scale_y_continuous(
-			breaks = seq(from=0, to=1, by=0.05),
-			limits=c(-1,1)
+			breaks = seq(from=-0.1, to=1, by=0.1),
+			limits=c(-0.1,1)
 		) +
-		labs(...)
-	month_dist_stats_lineplot = 
+		geom_hline(yintercept = 0, color="black") +
+		geom_hline(yintercept = 0.8, color="red", linetype="longdash") +
+		geom_hline(yintercept = 0.9, color="red", linetype="dashed") +
+		labs(
+			title=args$title,
+			subtitle=args$subtitle,
+			x=args$x,
+			y="R^2"
+		)
+	month_bias_lineplot = 
 		ggplot(
-			data = month_stats %>% filter(statistic %in% c("residual_kurtosis","residual_skewness")),
+			data = month_stats %>% filter(!(statistic %in% c("residual_kurtosis","residual_skewness","R^2"))),
 			mapping=aes(
 				x=mos_into_deployment,
 				y=value,
 				color=statistic
 			)
 		) + 
-		geom_line() +
+		geom_step() +
 		scale_x_continuous(
 			breaks = seq(
 				from = min(month_stats$mos_into_deployment),
@@ -250,8 +262,18 @@ deployment_corr_stat_lineplot = function(
 				by   = 6
 			)
 		) +
-		labs(...)	
+		scale_y_continuous(
+			breaks = seq(from=-0.5, to=0.5, by=0.1),
+			limits=c(-0.5,0.5)
+		) +
+		labs(
+			x=args$x,
+			y=args$y,
+			caption=args$caption
+		)	
 	
-	patch = month_corr_stats_lineplot / month_dist_stats_lineplot
-	ggsave(plot=patch, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
+	patch = month_R2_lineplot / month_bias_lineplot
+	ggsave(plot=patch, filename=plot_filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
+
+
 }

@@ -1,5 +1,16 @@
 library(tidyverse)
 
+beaco2n_site_list = c(
+	"myron","zuccolo","wecc","rocklib","silverlake","unitedway","cfs","pha","reservoir","ccri",
+	"mtpleasant","carnevale","martialarts","southprovlib","ecubed","ricollege","blackstone","rochambeaulib","provcollege","prek",
+	"smithhilllib","pema","rockspot","medschool","dpw"
+)
+quantaq_site_list = c("dpw","pema","pha")
+aqs_site_list = c("myron","cranston")
+beaco2n_berkeley_site_list = c(
+	"rfs","dejean","albany","korematsu","madera","nystrom","peres","washington"
+)
+
 # NOTE: Clearing the cache does not actually force a refresh of data originating from uncleaned data,
 # because the python cleaner also needs to run. This method should execute the cleaner when file read fails.
 import_co = function(city="providence") {

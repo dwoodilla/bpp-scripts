@@ -9,16 +9,6 @@ library(patchwork)
 
 
 # Errors: rochambeaulib, zuccolo, smithhilllib, pema, rockspot
-beaco2n_site_list = c(
-	"myron","zuccolo","wecc","rocklib","silverlake","unitedway","cfs","pha","reservoir","ccri",
-	"mtpleasant","carnevale","martialarts","southprovlib","ecubed","ricollege","blackstone","rochambeaulib","provcollege","prek",
-	"smithhilllib","pema","rockspot","medschool","dpw"
-)
-quantaq_site_list = c("dpw","pema","pha")
-aqs_site_list = c("myron","cranston")
-beaco2n_berkeley_site_list = c(
-	"rfs","dejean","albany","korematsu","madera","nystrom","peres","washington"
-)
 
 elongate_df = function(
 	df,
