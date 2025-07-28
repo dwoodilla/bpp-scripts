@@ -3,6 +3,7 @@ from os import path
 from glob import glob
 
 aqs_dir = "./data/aqs"
+met_dir = "./data/met"
 quantaq_dir = "./data/quantaq"
 beaco2n_dir = "./data/beaco2n"
 

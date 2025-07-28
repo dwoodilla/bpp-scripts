@@ -1,4 +1,5 @@
 library(tidyverse)
+library(worldmet)
 
 beaco2n_site_list = c(
 	"myron","zuccolo","wecc","rocklib","silverlake","unitedway","cfs","pha","reservoir","ccri",

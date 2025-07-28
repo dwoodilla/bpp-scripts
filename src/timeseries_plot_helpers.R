@@ -200,8 +200,8 @@ deployment_corr_stat_lineplot = function(
 			RMSE = sqrt(mean((resid)^2, na.rm=TRUE)),
 			MBE = mean(resid, na.rm=TRUE),
 			Median_Bias_Error = median(resid, na.rm=TRUE),
-			residual_kurtosis = kurtosis(resid, na.rm=TRUE),
-			residual_skewness = skewness(resid, na.rm=TRUE)
+			measurement_sd = sd(meas, na.rm=TRUE),
+			reference_sd = sd(ref, na.rm=TRUE)
 		) %>%
 		ungroup() %>%
 		write_csv(file=csv_filepath)
@@ -214,7 +214,7 @@ deployment_corr_stat_lineplot = function(
 		) %>%
 		complete(
 			mos_into_deployment=deployment_mos_range, 
-			statistic=c("R^2","RMSE","MBE","Median_Bias_Error","residual_kurtosis","residual_skewness")
+			statistic=c("R^2","RMSE","MBE","Median_Bias_Error","measurement_sd","reference_sd")
 		)
 	month_R2_lineplot = 
 		ggplot(
@@ -236,7 +236,7 @@ deployment_corr_stat_lineplot = function(
 			breaks = seq(from=-0.1, to=1, by=0.1),
 			limits=c(-0.1,1)
 		) +
-		geom_hline(yintercept = 0, color="black") +
+		geom_hline(yintercept = 0, color="red") +
 		geom_hline(yintercept = 0.8, color="red", linetype="longdash") +
 		geom_hline(yintercept = 0.9, color="red", linetype="dashed") +
 		labs(
@@ -247,7 +247,7 @@ deployment_corr_stat_lineplot = function(
 		)
 	month_bias_lineplot = 
 		ggplot(
-			data = month_stats %>% filter(!(statistic %in% c("residual_kurtosis","residual_skewness","R^2"))),
+			data = month_stats %>% filter(statistic %in% c("RMSE","MBE","Median_Bias_Error")),
 			mapping=aes(
 				x=mos_into_deployment,
 				y=value,
@@ -266,13 +266,42 @@ deployment_corr_stat_lineplot = function(
 			breaks = seq(from=-0.5, to=0.5, by=0.1),
 			limits=c(-0.5,0.5)
 		) +
+		geom_hline(yintercept = 0, color="red") +
 		labs(
 			x=args$x,
 			y=args$y,
 			caption=args$caption
 		)	
 	
-	patch = month_R2_lineplot / month_bias_lineplot
+	month_sd_lineplot = 
+		ggplot(
+			data = month_stats %>% filter(statistic %in% c("measurement_sd","reference_sd")),
+			mapping=aes(
+				x=mos_into_deployment,
+				y=value,
+				color=statistic
+			)
+		) + 
+		geom_step() +
+		scale_x_continuous(
+			breaks = seq(
+				from = min(month_stats$mos_into_deployment),
+				to   = max(month_stats$mos_into_deployment),
+				by   = 6
+			)
+		) +
+		scale_y_continuous(
+			breaks = seq(from=-0.5, to=0.5, by=0.1),
+			limits=c(-0.5,0.5)
+		) +
+		geom_hline(yintercept = 0, color="red") +
+		labs(
+			x=args$x,
+			y=args$y,
+			caption=args$caption
+		)	
+	
+	patch = month_R2_lineplot / month_bias_lineplot / month_sd_lineplot
 	ggsave(plot=patch, filename=plot_filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
 
 
