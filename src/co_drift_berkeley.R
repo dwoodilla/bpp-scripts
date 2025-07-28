@@ -7,330 +7,153 @@ library(latex2exp)
 library(gridExtra)
 
 source("./clean/import_cleaned.R")
-source("./src/plot_helpers.R")
+source("./src/data_arrangement_helpers.R")
+source("./src/divergence_plot_helpers.R")
+source("./src/timeseries_plot_helpers.R")
 
-co = import_co(city="berkeley")
-write_csv(co, "test.csv")
-stop()
+co_imp = import_co(city="berkeley")
 
-co_dod = dates_of_deployment(df=co, parameter_arg="co", sensors=c("beaco2n","super"))
-co_filtered = co %>% 
-    pivot_wider(
-        names_from="parameter",
-        values_from="value"
-    ) %>%
-    filter(is.na(temp) | temp < 30, is.na(rh) | rh < 75) %>%
-    pivot_longer(
-        cols=c("co","temp","rh"),
-        names_to = "parameter",
-        values_to="value"
-    )
-
-co_long_unfiltered = elongate_wrapper(
-    df=co,
-    parameter="co",
-    sensors=c("beaco2n","super"),
-    dates_of_deployment=co_dod,
-    filepath="./cache/beaco2n_berkeley_drift_long.csv"
+co = elongate_df(
+    df = co_imp,
+    parameters = c("co"),
+    sensors = c("beaco2n","super"),
+    read_from_cache = TRUE, 
+    cache_file="cache/beaco2n_berkeley_co_drift_long.csv"
 )
-co_long_filtered = elongate_wrapper(
-    df=co_filtered,
-    parameter="co",
-    sensors=c("beaco2n","super"),
-    dates_of_deployment=co_dod,
-    filepath="./cache/beaco2n_berkeley_drift_long_metfiltered.csv"
+co_met = elongate_df(
+    df = co_imp,
+    parameters = c("co"),
+    sensors = c("beaco2n","super"),
+    meteorology = c(30,75),
+    read_from_cache = TRUE,
+    cache_file="cache/beaco2n_berkeley_co_drift_long_metfilter.csv"
 )
 
-for (meas_location_iter in c("washington")) {
+for (meas_location_iter in c("rfs")) {
     ref_location = "rfs"
-    
+    basepath = paste0("./plots/berkeley_co_drift/",meas_location_iter,"/")
     print(paste0("meas_location_iter: ", meas_location_iter))
 
-    # Data structures for external reference
-    co_unfiltered_plottable_extref = arrange_season_data(
-        dataset=co_long_unfiltered,
-        noise_filter="original",
-        meas_sensor="beaco2n",
-        meas_location=meas_location_iter,
-        self_ref=FALSE,
-        ref_sensor="super",
-        ref_location=ref_location
+    # Data structures
+    df_list = list(
+        ext      = arrange_plot_df(co, "co", "beaco2n", meas_location_iter, FALSE, "super", "rfs"),
+        ext_met  = arrange_plot_df(co_met, "co", "beaco2n", meas_location_iter, FALSE, "super", "rfs"),
+        int      = arrange_plot_df(co, "co", "beaco2n", meas_location_iter, TRUE),
+        int_met  = arrange_plot_df(co_met, "co", "beaco2n", meas_location_iter, TRUE)
     )
-    co_unfiltered_plottable_deployment_extref = arrange_deployment_data(
-        dataset=co_long_unfiltered,
-        noise_filter="original",
-        meas_sensor="beaco2n",
-        meas_location=meas_location_iter,
-        self_ref=FALSE,
-        ref_sensor="super",
-        ref_location=ref_location
-    )
-    co_unfiltered_deployment_pdf_stats_extref = deployment_density_stats(
-        season_data=co_unfiltered_plottable_extref
-    )
-    co_filtered_plottable_extref = arrange_season_data(
-        dataset=co_long_filtered,
-        noise_filter="original",
-        meas_sensor="beaco2n",
-        meas_location=meas_location_iter,
-        self_ref=FALSE,
-        ref_sensor="super",
-        ref_location=ref_location
-    )
-    co_filtered_plottable_deployment_extref = arrange_deployment_data(
-        dataset=co_long_filtered,
-        noise_filter="original",
-        meas_sensor="beaco2n",
-        meas_location=meas_location_iter,
-        self_ref=FALSE,
-        ref_sensor="super",
-        ref_location=ref_location
-    )
-    co_filtered_deployment_pdf_stats_extref = deployment_density_stats(
-        season_data=co_filtered_plottable_extref
+    df_list = lapply(df_list, facet_filter_helper)
+    pdf_list = lapply(df_list, deployment_density_stats)
+
+    # Plot configs
+    plot_cfgs = list(
+        ext = list(
+            folder = "extref/",
+            ref = toupper(ref_location),
+            subtitle = paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," Reference"),
+            self_ref = FALSE
+        ),
+        int = list(
+            folder = "intref/",
+            ref = toupper(meas_location_iter),
+            subtitle = paste0(toupper(meas_location_iter)," BEACO2N vs.\n",toupper(meas_location_iter)," BEACO2N at Operating-year 1"),
+            self_ref = TRUE
+        )
     )
 
-    # Data structures for internal reference 
-    co_unfiltered_plottable_intref = arrange_season_data(
-        dataset=co_long_unfiltered,
-        noise_filter="original",
-        meas_sensor="beaco2n",
-        meas_location=meas_location_iter,
-        self_ref=TRUE
-    )
-    co_unfiltered_plottable_deployment_intref = arrange_deployment_data(
-        dataset=co_long_unfiltered,
-        noise_filter="original",
-        meas_sensor="beaco2n",
-        meas_location=meas_location_iter,
-        self_ref=TRUE
-    )
-    co_unfiltered_deployment_pdf_stats_intref = deployment_density_stats(
-        season_data=co_unfiltered_plottable_intref
-    )
-    co_filtered_plottable_intref = arrange_season_data(
-        dataset=co_long_filtered,
-        noise_filter="original",
-        meas_sensor="beaco2n",
-        meas_location=meas_location_iter,
-        self_ref=TRUE
-    )
-    co_filtered_plottable_deployment_intref = arrange_deployment_data(
-        dataset=co_long_filtered,
-        noise_filter="original",
-        meas_sensor="beaco2n",
-        meas_location=meas_location_iter,
-        self_ref=TRUE
-    )
-    co_filtered_deployment_pdf_stats_intref = deployment_density_stats(
-        season_data=co_filtered_plottable_intref
+    # Meteorology filter configs
+    met_cfgs = list(
+        nofilter = list(suffix = "nofilter", caption = "meteorology=(no filter)  noise=\"original\"", met = FALSE),
+        metfilter = list(suffix = "metfilter", caption = "meteorology=(t<30C, rh<0.75)  noise=\"original\"", met = TRUE)
     )
 
-    basepath = paste0("./plots/berkeley_co_drift/",meas_location_iter,"/")
+    # Loop over external/internal, and met/no-met
+    for (ref_type in c("ext", "int")) {
+        for (met_type in c("nofilter", "metfilter")) {
+    # for (ref_type in c("ext")) {
+    #     for (met_type in c("metfilter")) {
+            df_key = ifelse(met_type == "nofilter", ref_type, paste0(ref_type,"_met"))
+            print(df_key)
+            pdf_key = df_key
+            cfg = plot_cfgs[[ref_type]]
+            met_cfg = met_cfgs[[met_type]]
+            plot_df = df_list[[df_key]]
+            pdf_stats = pdf_list[[pdf_key]][[1]]
 
-    # Plots for external reference, no meteorological filtering
-    deployment_correlation(
-        deployment_data = co_unfiltered_plottable_deployment_extref,
-        season_data = co_unfiltered_plottable_extref,
-        filepath=paste0(basepath, "extref/deployment_correlation_nofilter.png"),
-        title="Deployment Time Series Correlation by Operating Month",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," Reference"),
-        caption="meteorology=(no filter)  noise=\"original\"",
-        x="Reference [CO] (ppm)",
-        y="Measurement [CO] (ppm)"
-    )
-    deployment_corr_stat_lineplot(
-        deployment_data = co_unfiltered_plottable_deployment_extref,
-        filepath=paste0(basepath, "extref/deployment_corrstats_nofilter.png"),
-        title="Deployment Correlation Statistics by Operating Month",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," Reference"),
-        caption="meteorology=(no filter)  noise=\"original\"",
-        x="Months deployed",
-        y="Statistic value"
+            # # Correlation plot (skip for int_met)
+            # if (!(ref_type == "int" && met_type == "metfilter")) {
+                deployment_correlation(
+                    plot_df = plot_df,
+                    filepath = paste0(basepath, cfg$folder, "deployment_correlation_", met_cfg$suffix, ".png"),
+                    title = "Deployment Time Series Correlation by Operating Month",
+                    subtitle = cfg$subtitle,
+                    caption = met_cfg$caption,
+                    x = "Reference [CO] (ppm)",
+                    y = "Measurement [CO] (ppm)"
+                )
+            # }
 
-    )
-    deployment_density(
-        season_data=co_unfiltered_plottable_extref,
-        filepath=paste0(basepath, "extref/deployment_pdfs_nofilter.png"),
-        title="Deployment Probability Density Functions by Operating Month",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," Reference"),
-        caption="meteorology=(no filter)  noise=\"original\"",
-        x="[CO] (ppm)",
-        y=TeX("$\\frac{d (Cumulative\\_density)}{d[CO]}=pdf$")
-    )
-    divergence_line_plot(
-        pdf_stats=co_unfiltered_deployment_pdf_stats_extref[[1]],
-        filepath=paste0(basepath,"extref/divergence_line_plot_nofilter.png"),
-        title="Divergence Statistics over Months Deployed",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," Reference"),
-        caption="meteorology=(no filter)  noise=\"original\"",
-        x="Months Deployed",
-        y="Statistic value",
-        self_ref=FALSE
-    )
+            # Correlation stats plot (skip for int)
+            # if (ref_type == "ext") {
+                deployment_corr_stat_lineplot(
+                    plot_df = plot_df,
+                    filepath = paste0(basepath, cfg$folder, "deployment_corrstats_", met_cfg$suffix, ".png"),
+                    title = "Deployment Correlation Statistics by Operating Month",
+                    subtitle = cfg$subtitle,
+                    caption = met_cfg$caption,
+                    x = "Months deployed",
+                    y = "Statistic value"
+                )
+            # }
 
-    write_csv(co_unfiltered_deployment_pdf_stats_extref[[1]], file=paste0(basepath,"extref/divergence_table_nofilter.csv"))
+            # Density plot
+            deployment_density(
+                plot_df = plot_df,
+                filepath = paste0(basepath, cfg$folder, "deployment_pdfs_", met_cfg$suffix, ".png"),
+                title = "Deployment Probability Density Functions by Operating Month",
+                subtitle = cfg$subtitle,
+                caption = met_cfg$caption,
+                x = "[CO] (ppm)",
+                y = TeX("$\\frac{d (Cumulative\\_density)}{d[CO]}=pdf$")
+            )
 
-    # Plots for external reference, WITH meteorological filtering
-    deployment_correlation(
-        deployment_data = co_filtered_plottable_deployment_extref,
-        season_data=co_filtered_plottable_extref,
-        filepath=paste0(basepath,"extref/deployment_correlation_metfilter.png"),
-        title="Deployment Time Series Correlation by Operating Month",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," Reference"),
-        caption="meteorology=(t<30C, rh<0.75)  noise=\"original\"",
-        x="Reference [CO] (ppm)",
-        y="Measurement [CO] (ppm)"
-    )
-    deployment_corr_stat_lineplot(
-        deployment_data = co_filtered_plottable_deployment_extref,
-        filepath=paste0(basepath,"extref/deployment_corrstats_metfilter.png"),
-        title="Deployment Correlation Statistics by Operating Month",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," Reference"),
-        caption="meteorology=(no filter)  noise=\"original\"",
-        x="Months deployed",
-        y="Statistic value"
+            # Divergence line plot
+            divergence_line_plot(
+                pdf_stats = pdf_stats,
+                filepath = paste0(basepath, cfg$folder, "divergence_line_plot_", met_cfg$suffix, ".png"),
+                title = "Divergence Statistics over Months Deployed",
+                subtitle = cfg$subtitle,
+                caption = met_cfg$caption,
+                x = "Months Deployed",
+                y = "Statistic value",
+                self_ref = cfg$self_ref
+            )
 
-    )
-    deployment_density(
-        season_data=co_filtered_plottable_extref,
-        filepath=paste0(basepath,"extref/deployment_pdfs_metfilter.png"),
-        title="Deployment Probability Density Functions by Operating Month",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," Reference"),
-        caption="meteorology=(t<30C, rh<0.75)  noise=\"original\"",
-        x="[CO] (ppm)",
-        y=TeX("$\\frac{d (Cumulative\\_density)}{d[CO]}=pdf$")
-    )
-    divergence_line_plot(
-        pdf_stats=co_filtered_deployment_pdf_stats_extref[[1]],
-        filepath=paste0(basepath,"extref/divergence_line_plot_metfilter.png"),
-        title="Divergence Statistics over Months Deployed",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," Reference"),
-        caption="meteorology=(t<30C, rh<0.75)  noise=\"original\"",
-        x="Months Deployed",
-        y="Statistic value",
-        self_ref=FALSE
-    )
+            # Write divergence table
+            write_csv(pdf_stats, file = paste0(basepath, cfg$folder, "divergence_table_", met_cfg$suffix, ".csv"))
+        }
 
-    write_csv(co_filtered_deployment_pdf_stats_extref[[1]], file=paste0(basepath, "extref/divergence_table_metfilter.csv"))
-
-    metfilter_divergence_diff_by_opmonth_extref = 
-        left_join(
-            x=co_unfiltered_deployment_pdf_stats_extref[[1]] %>% select(-pdf_resolution),
-            y=co_filtered_deployment_pdf_stats_extref[[1]] %>% select(-pdf_resolution),
-            by=join_by(mos_into_deployment, statistic, plottype),
-            relationship="one-to-one",
-            suffix=c("_nofilt","_metfilt")
+        # Difference plot between metfilter and nofilter
+        pdf_nofilt = pdf_list[[ref_type]][[1]] %>% select(-pdf_resolution)
+        pdf_metfilt = pdf_list[[paste0(ref_type,"_met")]][[1]] %>% select(-pdf_resolution)
+        pdf_diff = left_join(
+            x = pdf_nofilt,
+            y = pdf_metfilt,
+            by = join_by(mos_into_deployment, statistic, plottype),
+            relationship = "one-to-one",
+            suffix = c("_nofilt", "_metfilt")
         ) %>%
-        mutate(
-            value = value_metfilt-value_nofilt
-        ) %>%
-        select(-c("value_nofilt","value_metfilt"))
+        mutate(value = value_metfilt - value_nofilt) %>%
+        select(-c("value_nofilt", "value_metfilt"))
 
-    divergence_line_plot(
-        pdf_stats = metfilter_divergence_diff_by_opmonth_extref,
-        filepath=paste0(basepath,"extref/metfilter_divergence_difference.png"),
-        # lims_y=c(-0.33,0.33),
-        self_ref=FALSE,
-        title="Change in Divergence after Meteorological Filtering",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs. ", toupper(ref_location)," Reference"),
-        caption="meteorology=NA, noise=\"original\"",
-        y="Meteorologically Filtered Statistic - Non-filtered Statistic",
-        x="Months into Deployment"
-    )
-
-    # Plots for internal reference, no meteorological filtering
-    deployment_correlation(
-        deployment_data = co_unfiltered_plottable_deployment_intref,
-        season_data = co_unfiltered_plottable_intref,
-        filepath=paste0(basepath,"intref/deployment_correlation_nofilter.png"),
-        title="Deployment Time Series Correlation by Operating Month",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs.\n",toupper(meas_location_iter)," BEACO2N at Operating-year 1"),
-        caption="meteorology=(no filter)  noise=\"original\"",
-        x="Reference [CO] (ppm)",
-        y="Measurement [CO] (ppm)"
-    )
-    deployment_density(
-        season_data=co_unfiltered_plottable_intref,
-        filepath=paste0(basepath,"intref/deployment_pdfs_nofilter.png"),
-        title="Deployment Probability Density Functions by Operating Month",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs.\n",toupper(meas_location_iter)," BEACO2N at Operating-year 1"),
-        caption="meteorology=(no filter)  noise=\"original\"",
-        x="[CO] (ppm)",
-        y=TeX("$\\frac{d (Cumulative\\_density)}{d[CO]}=pdf$")
-    )
-    divergence_line_plot(
-        pdf_stats=co_unfiltered_deployment_pdf_stats_intref[[1]],
-        filepath=paste0(basepath,"intref/divergence_line_plot_nofilter.png"),
-        title="Divergence Statistics over Months Deployed",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs.\n",toupper(meas_location_iter)," BEACO2N at Operating-year 1"),
-        caption="meteorology=(no filter)  noise=\"original\"",
-        x="Months Deployed",
-        y="Statistic value",
-        self_ref=TRUE
-    )
-
-    write_csv(co_unfiltered_deployment_pdf_stats_intref[[1]], file=paste0(basepath, "intref/divergence_table_nofilter.csv"))
-
-    # Plots for internal reference, WITH meteorological filtering
-    deployment_correlation(
-        deployment_data = co_filtered_plottable_deployment_intref,
-        season_data = co_filtered_plottable_intref,
-        filepath=paste0(basepath,"intref/deployment_correlation_metfilter.png"),
-        title="Deployment Time Series Correlation by Operating Month",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs.\n",toupper(meas_location_iter)," BEACO2N at Operating-year 1"),
-        caption="meteorology=(t<30C, rh<0.75)  noise=\"original\"",
-        x="Reference [CO] (ppm)",
-        y="Measurement [CO] (ppm)"
-    )
-    deployment_density(
-        season_data=co_filtered_plottable_intref,
-        filepath=paste0(basepath,"intref/deployment_pdfs_metfilter.png"),
-        title="Deployment Probability Density Functions by Operating Month",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs.\n",toupper(meas_location_iter)," BEACO2N at Operating-year 1"),
-        caption="meteorology=(t<30C, rh<0.75)  noise=\"original\"",
-        x="[CO] (ppm)",
-        y=TeX("$\\frac{d (Cumulative\\_density)}{d[CO]}=pdf$")
-    )
-    divergence_line_plot(
-        pdf_stats=co_filtered_deployment_pdf_stats_intref[[1]],
-        filepath=paste0(basepath,"intref/divergence_line_plot_metfilter.png"),
-        title="Divergence Statistics over Months Deployed",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs.\n",toupper(meas_location_iter)," BEACO2N at Operating-year 1"),
-        caption="meteorology=(t<30C, rh<0.75)  noise=\"original\"",
-        x="Months Deployed",
-        y="Statistic value",
-        self_ref=TRUE
-    )
-
-    write_csv(co_filtered_deployment_pdf_stats_intref[[1]], file=paste0(basepath, "intref/divergence_table_metfilter.csv"))
-
-    metfilter_divergence_diff_by_opmonth_intref = 
-        left_join(
-            x=co_unfiltered_deployment_pdf_stats_intref[[1]] %>% select(-pdf_resolution),
-            y=co_filtered_deployment_pdf_stats_intref[[1]] %>% select(-pdf_resolution),
-            by=join_by(mos_into_deployment, statistic, plottype),
-            relationship="one-to-one",
-            suffix=c("_nofilt","_metfilt")
-        ) %>%
-        mutate(
-            value = value_metfilt-value_nofilt
-        ) %>%
-        select(-c("value_nofilt","value_metfilt"))
-
-    divergence_line_plot(
-        pdf_stats = metfilter_divergence_diff_by_opmonth_intref,
-        filepath=paste0(basepath,"intref/metfilter_divergence_difference.png"),
-        # lims_y=c(-0.33,0.33),
-        self_ref=FALSE,
-        title="Change in Divergence after Meteorological Filtering",
-        subtitle=paste0(toupper(meas_location_iter)," BEACO2N vs.\n",toupper(meas_location_iter)," BEACO2N at Operating-year 1"),
-        caption="meteorology=NA, noise=\"original\"",
-        y="Meteorologically Filtered Statistic - Non-filtered Statistic",
-        x="Months into Deployment"
-    )
-
-
+        divergence_line_plot(
+            pdf_stats = pdf_diff,
+            filepath = paste0(basepath, cfg$folder, "metfilter_divergence_difference.png"),
+            self_ref = FALSE,
+            title = "Change in Divergence after Meteorological Filtering",
+            subtitle = cfg$subtitle,
+            caption = "meteorology=NA, noise=\"original\"",
+            y = "Meteorologically Filtered Statistic - Non-filtered Statistic",
+            x = "Months into Deployment"
+        )
+    }
 }
-
-

@@ -5,10 +5,8 @@ library(ggpmisc)
 library(zoo)
 library(checkmate)
 library(moments) # skew, kurtosis
-library(philentropy) # divergences
 library(patchwork)
 
-# library(statip) # alternative hellinger
 
 # Errors: rochambeaulib, zuccolo, smithhilllib, pema, rockspot
 beaco2n_site_list = c(
@@ -21,8 +19,6 @@ aqs_site_list = c("myron","cranston")
 beaco2n_berkeley_site_list = c(
 	"rfs","dejean","albany","korematsu","madera","nystrom","peres","washington"
 )
-
-source("./src/timeseries_plot_helpers.R")
 
 elongate_df = function(
 	df,
@@ -65,7 +61,6 @@ elongate_df = function(
 				) %/% hours(1)
 			) %>% 
 			filter(hrs_into_deployment >= 0)
-		# browser()
 		if (met_filter) {
 			df_long = df_long %>%
 				group_by(sensor, location) %>%
@@ -102,9 +97,6 @@ arrange_plot_df = function(
 	ref_sensor, 
 	ref_location
 ) {
-	# if (!("parameter" %in% colnames(dataset))){
-	# 	browser()
-	# }
 	dataset = dataset %>% filter(parameter==parameter_arg)
 
 	plot_data = filter(.data=dataset, sensor==meas_sensor, location==meas_location) 
@@ -133,7 +125,6 @@ arrange_plot_df = function(
 		.data=plot_data, 
 		value_resid = value_meas - value_ref,
 		# Copy remaining data from measurement to residual.
-		# mos_into_deployment may need to depend on whether both sensors have data or not.
 		sensor_resid = "residual",
 		sn_year_resid = sn_year_meas,
 		season_resid = season_meas,
@@ -156,14 +147,9 @@ arrange_plot_df = function(
 	if (any(is.na(plot_data$sn_year)) | any(is.na(plot_data$season))) {
 		warning("Dropping rows of plot data with NA faceting variables.")
 		plot_data = plot_data %>% filter(!is.na(sn_year), !is.na(season))
-	} # DEBUG : season is always NA causing all rows to be filtered out.
-	if (nrow(as.matrix(plot_data))==0) {
-		print("bp")
 	}
 	return(plot_data)
 }
-
-
 
 season = function(date_vec) {
 	m = month(as.Date(date_vec))
@@ -213,231 +199,6 @@ dates_of_deployment = function(
 		slice(1) %>%
 		ungroup() %>%
 		select(sensor, location, deployment_start=date)
-}
-
-
-
-deployment_correlation = function(
-	plot_df,
-	filepath,
-	...
-) {
-	# plot_df = facet_filter_helper(plot_df)
-	wide_plot_df = wide_plot_df_helper(plot_df)
-	residual_plot = 
-		ggplot(
-			data=wide_plot_df,
-			mapping=aes(
-				x=ref,
-				y=meas
-			)
-		) + 
-		facet_wrap(
-			~ mos_into_deployment, 
-			ncol=3, 
-			labeller = labeller(
-				mos_into_deployment = function(x) {
-					return(deployment_density_labeller(
-						plot_df=plot_df, 
-						dep_months=x
-					))
-				}
-			)
-		) +
-		# stat_poly_line() + stat_poly_eq() +
-		geom_abline(slope=1, intercept=0, color="red") +
-		geom_point(alpha=0.05) + 
-		labs(...)
-	ggsave(plot=residual_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
-}
-
-deployment_corr_stat_lineplot = function(
-	plot_df,
-	filepath,
-	...
-) {
-	wide_plot_df = wide_plot_df_helper(plot_df)
-	deployment_mos_range = wide_plot_df %>% pull(mos_into_deployment) %>% range(na.rm=TRUE)
-	deployment_mos_range = seq(deployment_mos_range[1], deployment_mos_range[2], by=1)
-	month_stats = wide_plot_df %>%
-		group_by(mos_into_deployment) %>%
-		summarize(
-			`R^2` = cor(meas, ref, use="pairwise.complete.obs")^2,
-			Pearson_R = cor(meas, ref, use="pairwise.complete.obs"),
-			mean_residual = mean(resid, na.rm=TRUE),
-			median_residual = median(resid, na.rm=TRUE),
-			residual_kurtosis = kurtosis(resid, na.rm=TRUE),
-			residual_skewness = skewness(resid, na.rm=TRUE)
-		) %>%
-		ungroup() %>%
-		pivot_longer(
-			cols = -mos_into_deployment,
-			names_to = "statistic",
-			values_to = "value"
-		) %>%
-		complete(
-			mos_into_deployment=deployment_mos_range, 
-			statistic=c("R^2","Pearson_R","mean_residual","median_residual","residual_kurtosis","residual_skewness")
-		)
-	month_corr_stats_lineplot = 
-		ggplot(
-			data = month_stats %>% filter(!(statistic %in% c("residual_kurtosis","residual_skewness"))),
-			mapping=aes(
-				x=mos_into_deployment,
-				y=value,
-				color=statistic
-			)
-		) + 
-		geom_line() +
-		scale_x_continuous(
-			breaks = seq(
-				from = min(month_stats$mos_into_deployment),
-				to   = max(month_stats$mos_into_deployment),
-				by   = 6
-			)
-		) +
-		labs(...)
-	month_dist_stats_lineplot = 
-		ggplot(
-			data = month_stats %>% filter(statistic %in% c("residual_kurtosis","residual_skewness"), !is.na(value)),
-			mapping=aes(
-				x=mos_into_deployment,
-				y=value,
-				color=statistic
-			)
-		) + 
-		geom_line() +
-		scale_x_continuous(
-			breaks = seq(
-				from = min(month_stats$mos_into_deployment),
-				to   = max(month_stats$mos_into_deployment),
-				by   = 6
-			)
-		) +
-		labs(...)	
-	
-	patch = month_corr_stats_lineplot / month_dist_stats_lineplot
-	ggsave(plot=patch, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
-}
-
-
-
-deployment_density = function(
-	plot_df, 
-	filepath,
-	...
-) {
-	# plot_df = facet_filter_helper(plot_df)
-	deployment_plot = 
-		ggplot(
-			data=plot_df %>% filter(plottype %in% c("meas","ref")),
-			mapping=aes(
-				x=value,
-				fill=plottype
-			)
-		) + 
-		facet_wrap(
-			~ mos_into_deployment, 
-			ncol=3, 
-			scales="free_y",
-			labeller = labeller(
-				mos_into_deployment = function(x) {
-					return(deployment_density_labeller(
-						plot_df=plot_df, 
-						dep_months=x
-					))
-				}
-			)
-		) +
-		geom_density(alpha=0.5) +
-		labs(...)
-	ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
-}
-
-#' The purpose of this function is to filter out mos_into_deployment groups of plot_df
-#' that contain no meas observations, but do contain reference observations, unless that 
-#' mos_into_deployment group is surrounded by op-months that do have measurement observations.
-facet_filter_helper = function(
-	plot_df
-) {
-	label_stats = plot_df
-	label_stats = label_stats %>% select(plottype, mos_into_deployment, date, value)
-	label_stats = label_stats %>% 
-		group_by(plottype, mos_into_deployment) %>%
-		filter(!is.na(value)) %>% 
-		summarize(n=n()) %>% ungroup() %>%
-		pivot_wider(
-			names_from="plottype",
-			values_from="n"
-		) 
-	opmonth_range = label_stats %>%
-		filter(!is.na(meas)) %>%
-		pull(mos_into_deployment) %>%
-		range(.)
-	ret = plot_df %>% filter(mos_into_deployment >= opmonth_range[1] & mos_into_deployment <= opmonth_range[2])
-	return(ret)
-}
-
-deployment_density_labeller = function(
-	plot_df, 
-	dep_months
-) {
-	label_stats = plot_df
-	label_stats = label_stats %>% select(plottype, mos_into_deployment, date, value)
-	label_stats = label_stats %>% 
-		group_by(plottype, mos_into_deployment) %>%
-		# filter(!is.na(value)) %>%
-		summarize(
-			n=sum(!is.na(value)),
-			mo_min = month(min(date), label=TRUE, abbr=TRUE),
-			mo_max = month(max(date), label=TRUE, abbr=TRUE),
-			yr_min = year(min(date)),
-			yr_max = year(max(date))
-		) %>% ungroup()
-
-	label_stats = label_stats %>% 
-		pivot_wider(
-			names_from="plottype",
-			values_from="n"
-		) 
-	
-	label_stats = label_stats %>% 
-		mutate(
-			label= if_else(
-				yr_min==yr_max,
-				paste0(
-					mos_into_deployment, ": ", 
-					mo_min, "-",
-					mo_max, " ", yr_max,
-					" r=", ref, " m=", meas
-				),
-				paste0(
-					mos_into_deployment, ": ", 
-					mo_min, " ", yr_min, "-",
-					mo_max, " ", yr_max,
-					" r=", ref, " m=", meas
-				)
-			) 
-		) 
-	# label_stats = label_stats %>%  # DEBUG: buggy line causing labeller NAs
-	# 	select(mos_into_deployment, label) %>%
-	# 	arrange(mos_into_deployment)
-	# 	# complete(
-	# 	# 	mos_into_deployment = full_seq(mos_into_deployment, 1)
-	# 	# ) 
-
-	# if (any(is.na(label_stats %>% pull(label)))) {
-	# 	print(label_stats %>% filter(is.na(label)))
-	# 	print("bp")
-	# }
-	# label_stats = label_stats %>% 
-	# 	mutate(label = if_else(
-	# 		is.na(label),
-	# 		paste0(mos_into_deployment, ": Insufficient Information"),
-	# 		label
-	# 	))
-	ret = t(setNames(label_stats$label, label_stats$mos_into_deployment))
-	return(ret)
 }
 
 deployment_density_stats = function(
@@ -585,38 +346,26 @@ deployment_density_stats = function(
 	return(list(stats_by_month, divergence_by_month))
 }
 
-divergence_line_plot = function(
-	pdf_stats,
-	filepath,
-	self_ref=FALSE,
-	lims_y=c(-2,2),
-	...
+#' The purpose of this function is to filter out mos_into_deployment groups of plot_df
+#' that contain no meas observations, but do contain reference observations, unless that 
+#' mos_into_deployment group is surrounded by op-months that do have measurement observations.
+facet_filter_helper = function(
+	plot_df
 ) {
-	if (self_ref) pdf_stats = filter(.data=pdf_stats, mos_into_deployment>=12)
-	# else pdf_stats = filter(.data=pdf_stats, !is.na(value))
-
-	divergences_plot = 
-		ggplot(
-			data=pdf_stats %>% filter(
-				statistic %in% c("KL","hellinger","euclidean")
-			),
-			mapping=aes(
-				x=mos_into_deployment,
-				y=value,
-				shape=statistic,
-				color=statistic
-			)
-		) +
-		geom_line() + theme_bw() +
-		coord_cartesian(ylim=lims_y) +
-		scale_x_continuous(
-			breaks = seq(
-				from = min(pdf_stats$mos_into_deployment),
-				to   = max(pdf_stats$mos_into_deployment),
-				by   = 6
-			)
-		) +
-		labs(...)
-
-	ggsave(plot=divergences_plot, filename=filepath, width=5, height=5, units="in", dpi=300, create.dir=TRUE)
+	label_stats = plot_df
+	label_stats = label_stats %>% select(plottype, mos_into_deployment, date, value)
+	label_stats = label_stats %>% 
+		group_by(plottype, mos_into_deployment) %>%
+		filter(!is.na(value)) %>% 
+		summarize(n=n()) %>% ungroup() %>%
+		pivot_wider(
+			names_from="plottype",
+			values_from="n"
+		) 
+	opmonth_range = label_stats %>%
+		filter(!is.na(meas)) %>%
+		pull(mos_into_deployment) %>%
+		range(.)
+	ret = plot_df %>% filter(mos_into_deployment >= opmonth_range[1] & mos_into_deployment <= opmonth_range[2])
+	return(ret)
 }

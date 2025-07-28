@@ -8,6 +8,8 @@ library(moments) # skew, kurtosis
 library(philentropy) # divergences
 library(patchwork)
 
+source("./src/data_arrangement_helpers.R")
+
 #' Plot timeseries of measurement and reference sensor, faceted by season. 
 #' @param `plot_df` must be in long format and contain both measurement and reference data.
 timeseries_year_season = function(
@@ -179,4 +181,77 @@ violin_deployment_residual = function(
 		geom_violin() + 
 		labs(...)
 	ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
+}
+
+deployment_corr_stat_lineplot = function(
+	plot_df,
+	filepath,
+	...
+) {
+	wide_plot_df = wide_plot_df_helper(plot_df)
+	deployment_mos_range = wide_plot_df %>% pull(mos_into_deployment) %>% range(na.rm=TRUE)
+	deployment_mos_range = seq(deployment_mos_range[1], deployment_mos_range[2], by=1)
+	month_stats = wide_plot_df %>%
+		group_by(mos_into_deployment) %>%
+		summarize(
+			`R^2` = cor(meas, ref, use="pairwise.complete.obs")^2,
+			RMSE = sqrt(mean((resid)^2, na.rm=TRUE)),
+			MBE = mean(resid, na.rm=TRUE),
+			Median_Bias_Error = median(resid, na.rm=TRUE),
+			residual_kurtosis = kurtosis(resid, na.rm=TRUE),
+			residual_skewness = skewness(resid, na.rm=TRUE)
+		) %>%
+		ungroup() %>%
+		pivot_longer(
+			cols = -mos_into_deployment,
+			names_to = "statistic",
+			values_to = "value"
+		) %>%
+		complete(
+			mos_into_deployment=deployment_mos_range, 
+			statistic=c("R^2","RMSE","MBE","Median_Bias_Error","residual_kurtosis","residual_skewness")
+		)
+	month_corr_stats_lineplot = 
+		ggplot(
+			data = month_stats %>% filter(!(statistic %in% c("residual_kurtosis","residual_skewness"))),
+			mapping=aes(
+				x=mos_into_deployment,
+				y=value,
+				color=statistic
+			)
+		) + 
+		geom_line() +
+		scale_x_continuous(
+			breaks = seq(
+				from = min(month_stats$mos_into_deployment),
+				to   = max(month_stats$mos_into_deployment),
+				by   = 6
+			)
+		) +
+		scale_y_continuous(
+			breaks = seq(from=0, to=1, by=0.05),
+			limits=c(-1,1)
+		) +
+		labs(...)
+	month_dist_stats_lineplot = 
+		ggplot(
+			data = month_stats %>% filter(statistic %in% c("residual_kurtosis","residual_skewness")),
+			mapping=aes(
+				x=mos_into_deployment,
+				y=value,
+				color=statistic
+			)
+		) + 
+		geom_line() +
+		scale_x_continuous(
+			breaks = seq(
+				from = min(month_stats$mos_into_deployment),
+				to   = max(month_stats$mos_into_deployment),
+				by   = 6
+			)
+		) +
+		labs(...)	
+	
+	patch = month_corr_stats_lineplot / month_dist_stats_lineplot
+	ggsave(plot=patch, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
 }
