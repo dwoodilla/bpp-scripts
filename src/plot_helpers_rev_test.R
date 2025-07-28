@@ -15,7 +15,7 @@ co = elongate_df(
     df = co_imp,
     parameters = c("co"),
     sensors = c("beaco2n","super"),
-    read_from_cache = FALSE, 
+    read_from_cache = TRUE, 
     cache_file="cache/nmt.csv"
 )
 co_met = elongate_df(
@@ -23,7 +23,7 @@ co_met = elongate_df(
     parameters = c("co"),
     sensors = c("beaco2n","super"),
     meteorology = c(30,75),
-    read_from_cache = FALSE,
+    read_from_cache = TRUE,
     cache_file="cache/met.csv"
 )
 
@@ -39,6 +39,7 @@ for (meas_location_iter in c("washington")) {
         int      = arrange_plot_df(co, "co", "beaco2n", meas_location_iter, TRUE),
         int_met  = arrange_plot_df(co_met, "co", "beaco2n", meas_location_iter, TRUE)
     )
+    df_list = lapply(df_list, facet_filter_helper)
     pdf_list = lapply(df_list, deployment_density_stats)
 
     # Plot configs
@@ -66,6 +67,8 @@ for (meas_location_iter in c("washington")) {
     # Loop over external/internal, and met/no-met
     for (ref_type in c("ext", "int")) {
         for (met_type in c("nofilter", "metfilter")) {
+    # for (ref_type in c("ext")) {
+    #     for (met_type in c("metfilter")) {
             df_key = ifelse(met_type == "nofilter", ref_type, paste0(ref_type,"_met"))
             print(df_key)
             pdf_key = df_key
@@ -74,8 +77,8 @@ for (meas_location_iter in c("washington")) {
             plot_df = df_list[[df_key]]
             pdf_stats = pdf_list[[pdf_key]][[1]]
 
-            # Correlation plot (skip for int_met)
-            if (!(ref_type == "int" && met_type == "metfilter")) {
+            # # Correlation plot (skip for int_met)
+            # if (!(ref_type == "int" && met_type == "metfilter")) {
                 deployment_correlation(
                     plot_df = plot_df,
                     filepath = paste0(basepath, cfg$folder, "deployment_correlation_", met_cfg$suffix, ".png"),
@@ -85,10 +88,10 @@ for (meas_location_iter in c("washington")) {
                     x = "Reference [CO] (ppm)",
                     y = "Measurement [CO] (ppm)"
                 )
-            }
+            # }
 
             # Correlation stats plot (skip for int)
-            if (ref_type == "ext") {
+            # if (ref_type == "ext") {
                 deployment_corr_stat_lineplot(
                     plot_df = plot_df,
                     filepath = paste0(basepath, cfg$folder, "deployment_corrstats_", met_cfg$suffix, ".png"),
@@ -98,7 +101,7 @@ for (meas_location_iter in c("washington")) {
                     x = "Months deployed",
                     y = "Statistic value"
                 )
-            }
+            # }
 
             # Density plot
             deployment_density(

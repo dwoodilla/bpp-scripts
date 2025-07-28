@@ -22,6 +22,7 @@ beaco2n_berkeley_site_list = c(
 	"rfs","dejean","albany","korematsu","madera","nystrom","peres","washington"
 )
 
+source("./src/timeseries_plot_helpers.R")
 
 elongate_df = function(
 	df,
@@ -214,131 +215,14 @@ dates_of_deployment = function(
 		select(sensor, location, deployment_start=date)
 }
 
-#' Plot timeseries of measurement and reference sensor, faceted by season. 
-#' @param `plot_df` must be in long format and contain both measurement and reference data.
-timeseries_year_season = function(
-	plot_df, 
-	filepath, 
-	...
-) {
-	ts_year_season = 
-		ggplot(
-			data=plot_df %>% filter(!is.na(value)), 
-			mapping=aes(x=hours_into_sn, y=value, color=plottype) 
-		) + 
-		facet_grid(rows=vars(sn_year), cols=vars(season)) +
-		geom_line(na.rm=TRUE) + theme_bw() +
-		theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
-		geom_hline(yintercept = 0, color="red") +
-		labs(...)
-	ggsave(plot=ts_year_season, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
-}
 
-timeseries_season = function(
-	plot_df, 
-	filepath, 
-	...
-) {
-	ts_season = 
-		ggplot(
-			data=plot_df, 
-			mapping=aes(
-				x=hours_into_sn,
-				y=value,
-				color=sn_year, 
-				linetype=sensor
-			)
-		) + 
-		facet_wrap(~ season) +
-		geom_line() + theme_bw() +
-		theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
-		geom_hline(yintercept = 0, color="red") +
-		labs(...)
-	ggsave(plot=ts_season, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
-}
-
-box_year_season = function(
-	plot_df, 
-	filepath, 
-	...
-) {
-	box_year_season = 
-		ggplot(
-			data=plot_df %>% filter(!is.na(value)), 
-			mapping=aes(x=sensor, y=value, color=plottype) 
-		) + 
-		facet_grid(rows=vars(sn_year), cols=vars(season)) +
-		geom_boxplot(na.rm=TRUE) + theme_bw() +
-		theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
-		# geom_hline(yintercept = 0, color="red") +
-		labs(...)
-	ggsave(plot=box_year_season, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
-}
-
-box_season = function(
-	plot_df, 
-	filepath,
-	...
-) {
-	box_sn = 
-		ggplot(
-			data=plot_df,
-			mapping=aes(
-				x=sn_year, 
-				y=value,
-				fill=sensor,
-			)
-		) + 
-		facet_wrap(~ season) +
-		geom_boxplot() + theme_bw() +
-		theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
-		labs(...)
-	ggsave(plot=box_sn, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
-}
-
-violin_year_season = function(
-	plot_df, 
-	filepath, 
-	...
-) {
-	violin_year_season = 
-		ggplot(
-			data=plot_df, 
-			mapping=aes(x=sensor, y=value, fill=plottype) 
-		) + 
-		facet_grid(rows=vars(sn_year), cols=vars(season), scales="free_y") +
-		geom_violin(na.rm=TRUE) + theme_bw() +
-		theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
-		labs(...)
-	ggsave(plot=violin_year_season, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
-}
-
-violin_season = function(
-	plot_df, 
-	filepath, 
-	...
-) {
-	violin_sn = 
-		ggplot(
-			data=plot_df, # Residual scaled poorly on plot
-			mapping=aes(
-				x=sn_year, 
-				y=value,
-				fill=sensor,
-			)
-		) + 
-		facet_wrap(~ season, scales="free_y") +
-		geom_violin() + theme_bw() +
-		theme(axis.text.x = element_text(angle=45, hjust=1, vjust=1)) +
-		labs(...)
-	ggsave(plot=violin_sn, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
-}
 
 deployment_correlation = function(
 	plot_df,
 	filepath,
 	...
 ) {
+	# plot_df = facet_filter_helper(plot_df)
 	wide_plot_df = wide_plot_df_helper(plot_df)
 	residual_plot = 
 		ggplot(
@@ -436,64 +320,14 @@ deployment_corr_stat_lineplot = function(
 	ggsave(plot=patch, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
 }
 
-timeseries_deployment_residual = function(
-	plot_df,
-	filepath,
-	...
-) {
-	wide_plot_df = wide_plot_df_helper(plot_df)
-	deployment_plot = 
-		ggplot(
-			data=wide_plot_df,
-			mapping=aes(
-				x=hrs_into_deployment_month,
-				y=resid
-			)
-		) + 
-		facet_wrap(
-			~ mos_into_deployment, 
-			ncol=3, 
-			labeller = labeller(
-				mos_into_deployment = function(x) {
-					return(deployment_density_labeller(
-						plot_df=plot_df, 
-						dep_months=x
-					))
-				}
-			)
-		) +
-		geom_line() + 
-		labs(...)
-	ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
-}
 
-violin_deployment_residual = function(
-	plot_df, 
-	filepath,
-	...
-) {
-	deployment_plot = 
-		ggplot(
-			data=plot_df %>% filter(plottype=="resid"),
-			mapping=aes(
-				x=plottype,
-				y=value
-			)
-		) + 
-		facet_wrap(
-			~ mos_into_deployment, 
-			ncol=3, 
-		) +
-		geom_violin() + 
-		labs(...)
-	ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
-}
 
 deployment_density = function(
 	plot_df, 
 	filepath,
 	...
 ) {
+	# plot_df = facet_filter_helper(plot_df)
 	deployment_plot = 
 		ggplot(
 			data=plot_df %>% filter(plottype %in% c("meas","ref")),
@@ -520,16 +354,41 @@ deployment_density = function(
 	ggsave(plot=deployment_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
 }
 
+#' The purpose of this function is to filter out mos_into_deployment groups of plot_df
+#' that contain no meas observations, but do contain reference observations, unless that 
+#' mos_into_deployment group is surrounded by op-months that do have measurement observations.
+facet_filter_helper = function(
+	plot_df
+) {
+	label_stats = plot_df
+	label_stats = label_stats %>% select(plottype, mos_into_deployment, date, value)
+	label_stats = label_stats %>% 
+		group_by(plottype, mos_into_deployment) %>%
+		filter(!is.na(value)) %>% 
+		summarize(n=n()) %>% ungroup() %>%
+		pivot_wider(
+			names_from="plottype",
+			values_from="n"
+		) 
+	opmonth_range = label_stats %>%
+		filter(!is.na(meas)) %>%
+		pull(mos_into_deployment) %>%
+		range(.)
+	ret = plot_df %>% filter(mos_into_deployment >= opmonth_range[1] & mos_into_deployment <= opmonth_range[2])
+	return(ret)
+}
+
 deployment_density_labeller = function(
 	plot_df, 
 	dep_months
 ) {
 	label_stats = plot_df
-	label_stats = label_stats %>% select(plottype, mos_into_deployment, date)
+	label_stats = label_stats %>% select(plottype, mos_into_deployment, date, value)
 	label_stats = label_stats %>% 
 		group_by(plottype, mos_into_deployment) %>%
+		# filter(!is.na(value)) %>%
 		summarize(
-			n=n(),
+			n=sum(!is.na(value)),
 			mo_min = month(min(date), label=TRUE, abbr=TRUE),
 			mo_max = month(max(date), label=TRUE, abbr=TRUE),
 			yr_min = year(min(date)),
@@ -541,6 +400,7 @@ deployment_density_labeller = function(
 			names_from="plottype",
 			values_from="n"
 		) 
+	
 	label_stats = label_stats %>% 
 		mutate(
 			label= if_else(
@@ -559,22 +419,23 @@ deployment_density_labeller = function(
 				)
 			) 
 		) 
-	label_stats = label_stats %>% 
-		select(mos_into_deployment, label) %>%
-		complete(
-			mos_into_deployment = full_seq(mos_into_deployment, 1)
-		) 
+	# label_stats = label_stats %>%  # DEBUG: buggy line causing labeller NAs
+	# 	select(mos_into_deployment, label) %>%
+	# 	arrange(mos_into_deployment)
+	# 	# complete(
+	# 	# 	mos_into_deployment = full_seq(mos_into_deployment, 1)
+	# 	# ) 
 
-	if (any(is.na(label_stats %>% pull(label)))) {
-		print(label_stats %>% filter(is.na(label)))
-		print("bp")
-	}
-	label_stats = label_stats %>% 
-		mutate(label = if_else(
-			is.na(label),
-			paste0(mos_into_deployment, ": Insufficient Information"),
-			label
-		))
+	# if (any(is.na(label_stats %>% pull(label)))) {
+	# 	print(label_stats %>% filter(is.na(label)))
+	# 	print("bp")
+	# }
+	# label_stats = label_stats %>% 
+	# 	mutate(label = if_else(
+	# 		is.na(label),
+	# 		paste0(mos_into_deployment, ": Insufficient Information"),
+	# 		label
+	# 	))
 	ret = t(setNames(label_stats$label, label_stats$mos_into_deployment))
 	return(ret)
 }
