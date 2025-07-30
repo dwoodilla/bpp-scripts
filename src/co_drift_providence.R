@@ -17,6 +17,7 @@ co = elongate_df(
     df = co_imp,
     parameters = c("co"),
     sensors = c("beaco2n","aqs"),
+    meteorology=c(Inf,Inf),
     read_from_cache = TRUE, 
     cache_file="cache/co_drift_providence.csv"
 )
