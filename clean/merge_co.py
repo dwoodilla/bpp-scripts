@@ -1,11 +1,12 @@
 import pandas as pd
 from os import path
 from glob import glob
+import requests
 
 aqs_dir = "./data/aqs"
-met_dir = "./data/met"
 quantaq_dir = "./data/quantaq"
 beaco2n_dir = "./data/beaco2n"
+
 
 
 aqs_dfs = []
@@ -19,6 +20,8 @@ for filepath in glob(path.join(aqs_dir, "*.csv")):
     df["location"] = location
     df = df.rename(columns={"sample_measurement":"co"})
     aqs_dfs.append(df)
+
+
 
 
 quantaq_dfs = []
