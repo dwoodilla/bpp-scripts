@@ -30,7 +30,7 @@ co_met = elongate_df(
     cache_file="cache/beaco2n_berkeley_co_drift_long_metfilter.csv"
 )
 
-for (meas_location_iter in beaco2n_berkeley_site_list) {
+for (meas_location_iter in c("rfs")) {
     ref_location = "rfs"
     basepath = paste0("./plots/berkeley_co_drift/",meas_location_iter,"/")
     print(paste0("meas_location_iter: ", meas_location_iter))

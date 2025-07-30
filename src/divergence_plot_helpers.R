@@ -125,6 +125,12 @@ divergence_line_plot = function(
 ) {
 	if (self_ref) pdf_stats = filter(.data=pdf_stats, mos_into_deployment>=12)
 
+	
+	pdf_means = pdf_stats %>% 
+		filter(statistic %in% c("KL","hellinger","euclidean")) %>%
+		group_by(statistic) %>% 
+		summarise(mean_div = mean(value, na.rm = TRUE))
+
 	divergences_plot = 
 		ggplot(
 			data=pdf_stats %>% filter(
@@ -145,6 +151,11 @@ divergence_line_plot = function(
 			)
 		) +
 		scale_y_continuous( breaks = seq(from=-2, to=2, by=0.2) ) +
+		geom_hline(
+			data = pdf_means,
+			aes(yintercept = mean_div),
+			color = "blue", linetype = "dashed"
+		) +
 		geom_hline(yintercept = 0, color="red") +
 		labs(...)
 
