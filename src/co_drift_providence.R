@@ -29,7 +29,7 @@ co_met = elongate_df(
     cache_file="cache/co_drift_providence_met.csv"
 )
 
-for (meas_location_iter in c("myron")) {
+for (meas_location_iter in beaco2n_site_list) {
     ref_location = ""
     if (meas_location_iter %in% c(
         "pha",

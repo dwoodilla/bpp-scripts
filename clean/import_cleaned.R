@@ -3,8 +3,8 @@ library(worldmet)
 
 beaco2n_site_list = c(
 	"myron","zuccolo","wecc","rocklib","silverlake","unitedway","cfs","pha","reservoir","ccri",
-	"mtpleasant","carnevale","martialarts","southprovlib","ecubed","ricollege","blackstone","rochambeaulib","provcollege","prek",
-	"smithhilllib","pema","rockspot","medschool","dpw"
+	"mtpleasant","carnevale","martialarts","southprovlib","ecubed","ricollege","blackstone","rochambeau","provcollege","prek",
+	"smithhill","pema","gym","medschool","dpw"
 )
 quantaq_site_list = c("dpw","pema","pha")
 aqs_site_list = c("myron","cranston")
@@ -12,11 +12,22 @@ beaco2n_berkeley_site_list = c(
 	"rfs","dejean","albany","korematsu","madera","nystrom","peres","washington"
 )
 
-# NOTE: Clearing the cache does not actually force a refresh of data originating from uncleaned data,
+# DEBUG: Clearing the cache does not actually force a refresh of data originating from uncleaned data,
 # because the python cleaner also needs to run. This method should execute the cleaner when file read fails.
 import_co = function(city="providence") {
     if (city=="berkeley") all_co = read.csv("./clean_data/merged_berkeley_co.csv")
-    else all_co = read.csv("./clean_data/merged_co.csv")
+    else {
+        all_co = read_csv("./clean_data/merged_co.csv")
+        met = tibble(importNOAA(
+            code="725070-14765",
+            year=2020:2025,
+            n.cores=2
+        ))
+        met = select(.data=met, date, air_temp, RH)
+        met = mutate(.data=met, temp_aqs_cranston=air_temp, temp_aqs_myron=air_temp, rh_aqs_cranson=RH, rh_aqs_myron=RH)
+        met = select(.data=met, !c(air_temp, RH))
+        all_co = left_join(x=all_co, y=met, by="date", relationship="one-to-one")
+    }
 
     all_co$date = as.POSIXct(all_co$date, tz="UTC")
     all_co = all_co %>% pivot_longer( # Convert combined_df to tidy format

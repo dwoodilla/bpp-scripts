@@ -355,9 +355,9 @@ mos_into_deployment,pdf_resolution,statistic,plottype,value
 32,0,mean,ref,NA
 32,0,sd,meas,0.11746028670524171
 32,0,sd,ref,NA
-32,0,kurtosis,meas,27.39613522641353
+32,0,kurtosis,meas,27.396135226413538
 32,0,kurtosis,ref,NA
-32,0,skewness,meas,4.354393160477189
+32,0,skewness,meas,4.35439316047719
 32,0,skewness,ref,NA
 32,0,KL,NA,NA
 32,0,hellinger,NA,NA

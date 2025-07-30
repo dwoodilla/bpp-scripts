@@ -269,7 +269,7 @@ mos_into_deployment,pdf_resolution,statistic,plottype,value
 24,8,sd,ref,0.05348190221002797
 24,8,kurtosis,meas,2.8739308109413613
 24,8,kurtosis,ref,3.726100222806954
-24,8,skewness,meas,0.45761186091261813
+24,8,skewness,meas,0.457611860912618
 24,8,skewness,ref,0.9156322314040737
 24,8,KL,NA,0.23619597364420444
 24,8,hellinger,NA,0.2475505376229561
