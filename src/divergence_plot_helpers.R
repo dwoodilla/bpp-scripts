@@ -6,9 +6,16 @@ library(zoo)
 library(checkmate)
 library(moments) # skew, kurtosis
 library(patchwork)
+library(roxygen2)
 
 source("./src/data_arrangement_helpers.R")
 
+#' Plots time series residuals across months of deployment for a given 
+#' measurement/reference sensor pair. Writes output to disk.
+#' @param plot_df A dataframe returned by `arrange_plot_df()`.
+#' @param filepath The path where the output plot will be written; 
+#' 		must include extension (.pdf, .png, ...)
+#' @param ... Plot labels. Must be passed explicitly (i.e. `title="title", x="x"`)
 deployment_correlation = function(
 	plot_df,
 	filepath,
@@ -41,6 +48,8 @@ deployment_correlation = function(
 	ggsave(plot=residual_plot, filename=filepath, width=8.5, height=11, units="in", dpi=300, create.dir=TRUE)
 }
 
+#' Plots probability density functions across months of deployment for a given measurement/reference sensor pair. 
+#' Labels are 
 deployment_density = function(
 	plot_df, 
 	filepath,

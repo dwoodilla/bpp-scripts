@@ -1,14 +1,10 @@
 library(plyr, include.only="round_any")
 library(tidyverse)
-library(sgolay)
 library(ggpmisc)
 library(zoo)
 library(checkmate)
 library(moments) # skew, kurtosis
 library(patchwork)
-
-
-# Errors: rochambeaulib, zuccolo, smithhilllib, pema, rockspot
 
 elongate_df = function(
 	df,
